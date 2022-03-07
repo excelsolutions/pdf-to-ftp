@@ -1102,4 +1102,19 @@ Public Class Form_Ustawienia
             Case "en"
         End Select
     End Sub
+
+    Private Sub Check_SFTP_CheckedChanged(sender As Object, e As EventArgs) Handles Check_SFTP.CheckedChanged
+        Timer_Pic.Enabled = False
+        Kontrolka.BackColor = Kolor_Kontrolki
+        If Check_SFTP.Checked = True Then
+            L_PIC_SFTP.BackColor = Color.Lime
+        Else
+            L_PIC_SFTP.BackColor = Color.Red
+        End If
+        Kontrolka = L_PIC_SFTP
+        Kolor_Kontrolki = L_PIC_SFTP.BackColor
+        Timer_Pic.Enabled = True
+    End Sub
+
+
 End Class

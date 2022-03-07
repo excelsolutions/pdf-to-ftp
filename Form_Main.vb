@@ -641,5 +641,9 @@ Public Class Form_Main
     Private Sub ToolStripStatusLabel2_Click_1(sender As Object, e As EventArgs)
 
     End Sub
+
+    Private Sub TestToolStripMenuItem_Click(sender As Object, e As EventArgs) Handles TestToolStripMenuItem.Click
+        Test_EWZ2()
+    End Sub
 End Class
 

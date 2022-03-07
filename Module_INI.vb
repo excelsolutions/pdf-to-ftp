@@ -16,6 +16,24 @@
 'znajduja się na stronie: http ://itextpdf.com/terms-of-use/
 'Autor: Łukasz Morawski, e-mail: lukasz.r.morawski@gmail.com
 'Kod źródłowy dostępny pod adresem: https://github.com/excelsolutions/PDF-to-FTP
+
+'Schemat dodawania nowego ustawienia:
+'0. Utwórz checkbox/textbox itp w zależności co chcesz zrobić
+'1. Dodaj zmienną w module o odpowiedniej nazwie jako string
+'2. Dodaj 2 wpisy w procedurze: ZAPISZ_USTAWIENIA_INI
+'   a) Dodaj przyporządkowanie wartości do zmiennej w zależności od wybranego checkboxa itp
+'   b) Dodaj wpis w odpowiedniej sekcji ini np.: ini.AddSection("OTHER_SETTINGS").AddKey("SFTP").Value = SFTP
+'3. Dodaj 2 wpisy w module WCZYTAJ_USTAWIENIA_INI
+'   a) Dodaj przyporządkowanie wczytanej wartości z ini do zmiennej np. 
+'If ini.RenameKey("OTHER_SETTINGS", "SFTP", "SFTP") Then
+'SFTP = ini.GetSection("OTHER_SETTINGS").GetKey("SFTP").Value
+'Else
+'ini.AddSection("OTHER_SETTINGS").AddKey("SFTP").Value = 0
+'ini.Save(Directory & "\Preferences.ini")
+'SFTP = 0
+'End If
+'   b) Dodaj przyporządkowanie wczytanej wartości do checkbox i PIC - kontrolek
+
 Imports System.IO
 
 
@@ -46,6 +64,7 @@ Module Module_INI
     Public Type_Of_Automat As String
     Public Work_On_Copies As String
     Public Allow_Duplicates As String
+    Public SFTP As String
     'Sekcja 6 Dzielenie plikow
     Public Whole_File As String 'procesuj caly plik czy tylko część
     Public Half_or_Specific As String 'bierz połowe stron czy określ jakie chcesz brać
@@ -123,6 +142,12 @@ Module Module_INI
             Jezyk = "en"
         End If
 
+        If My.Forms.Form_Ustawienia.Check_SFTP.Checked = True Then
+            SFTP = 1
+        Else
+            SFTP = 0
+        End If
+
 
         'Sciezka do pliku ustawień INI
         Dim Directory As String = My.Application.Info.DirectoryPath
@@ -156,6 +181,7 @@ Module Module_INI
         ini.AddSection("OTHER_SETTINGS").AddKey("Work_On_Copies").Value = Work_On_Copies
         ini.AddSection("OTHER_SETTINGS").AddKey("Allow_Duplicates").Value = Allow_Duplicates
         ini.AddSection("OTHER_SETTINGS").AddKey("Language").Value = Jezyk
+        ini.AddSection("OTHER_SETTINGS").AddKey("SFTP").Value = SFTP
 
         ini.AddSection("SPLITTING FILES").AddKey("Whole_File").Value = Whole_File
         ini.AddSection("SPLITTING FILES").AddKey("Half_or_Specific").Value = Half_or_Specific
@@ -341,14 +367,20 @@ Module Module_INI
         If ini.RenameKey("OTHER_SETTINGS", "Language", "Language") Then
             Jezyk = ini.GetSection("OTHER_SETTINGS").GetKey("Language").Value
         Else
-            ini.AddSection("OTHER_SETTINGS FILES").AddKey("Language").Value = "en"
+            ini.AddSection("OTHER_SETTINGS").AddKey("Language").Value = "en"
             ini.Save(Directory & "\Preferences.ini")
             Jezyk = "en"
         End If
 
+        If ini.RenameKey("OTHER_SETTINGS", "SFTP", "SFTP") Then
+            SFTP = ini.GetSection("OTHER_SETTINGS").GetKey("SFTP").Value
+        Else
+            ini.AddSection("OTHER_SETTINGS").AddKey("SFTP").Value = 0
+            ini.Save(Directory & "\Preferences.ini")
+            SFTP = 0
+        End If
 
-
-
+        'Wczytywanie wartości do Form_Ustawienia
         Form_Ustawienia.T_Sciezka_PDF.Text = Folder_PDF
         Form_Ustawienia.T_Sciezka_FTP.Text = Folder_FTP
         Form_Ustawienia.T_Login.Text = Login_FTP
@@ -473,6 +505,13 @@ Module Module_INI
                 My.Forms.Form_Ustawienia.R_English.Checked = True
         End Select
 
+        If SFTP = 1 Then
+            My.Forms.Form_Ustawienia.Check_SFTP.Checked = True
+            My.Forms.Form_Ustawienia.L_PIC_SFTP.BackColor = Color.Lime
+        Else
+            My.Forms.Form_Ustawienia.Check_SFTP.Checked = False
+            My.Forms.Form_Ustawienia.L_PIC_SFTP.BackColor = Color.Red
+        End If
 
 
 
