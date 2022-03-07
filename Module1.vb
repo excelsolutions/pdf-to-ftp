@@ -431,7 +431,7 @@ Module Module1
                                         If Not File.Exists(Folder_PDF & "Temporary_File" & i & ".pdf") Then 'wynikiem tego jest wysłanie na FTp i skasowanie pliku
                                             'My.Computer.FileSystem.CopyFile(Plik, Folder_PDF & "Temporary_File" & i & ".pdf")
                                             Extract_Specific_Pages(Plik, Folder_PDF & "Temporary_File" & i & ".pdf", Strony_Pliku) 'Nadpisz plik
-                                            My.Computer.Network.UploadFile(Folder_Dest & "Temporary_File" & i, remoteLOC, Login_FTP, Haslo_FTP, True, 500)
+                                            My.Computer.Network.UploadFile(Folder_Dest & "Temporary_File" & i & ".pdf", remoteLOC, Login_FTP, Haslo_FTP, True, 500)
                                             My.Computer.FileSystem.DeleteFile(Folder_PDF & "Temporary_File" & i & ".pdf")
                                             Wiersz(4) = "File is locked"
                                             Wiersz(5) = "OK"
