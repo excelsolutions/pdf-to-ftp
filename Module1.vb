@@ -431,7 +431,8 @@ Module Module1
                                         If Not File.Exists(Folder_PDF & "Temporary_File" & i & ".pdf") Then 'wynikiem tego jest wysłanie na FTp i skasowanie pliku
                                             'My.Computer.FileSystem.CopyFile(Plik, Folder_PDF & "Temporary_File" & i & ".pdf")
                                             Extract_Specific_Pages(Plik, Folder_PDF & "Temporary_File" & i & ".pdf", Strony_Pliku) 'Nadpisz plik
-                                            My.Computer.Network.UploadFile(Folder_Dest & "Temporary_File" & i & ".pdf", remoteLOC, Login_FTP, Haslo_FTP, True, 500)
+                                            'My.Computer.Network.UploadFile(Folder_Dest & "Temporary_File" & i & ".pdf", remoteLOC, Login_FTP, Haslo_FTP, True, 500)
+                                            Send_To_FTP_SFTP(Folder_Dest & "Temporary_File" & i & ".pdf", Wiersz(3), Folder_FTP, Login_FTP, Haslo_FTP, SFTP)
                                             My.Computer.FileSystem.DeleteFile(Folder_PDF & "Temporary_File" & i & ".pdf")
                                             Wiersz(4) = "File is locked"
                                             Wiersz(5) = "OK"
@@ -447,7 +448,8 @@ Module Module1
                                         'PROBLEM: W PRZYPADKU pliku bez tekstu z parzystą liczbą stron-dzielenie na pół działać ma, ale dzielenie po słowie nie
                                         'PROBLEM: W PRZYPADKU, gdy program nie znajdzie słowa kluczowego w ogóle w pliku- nie przetwarzać
                                         Extract_Specific_Pages(Plik, Folder_PDF & "Temporary_File" & i & ".pdf", Strony_Pliku) 'Stwórz nowy plik z odpowiednimi stronami
-                                        My.Computer.Network.UploadFile(Folder_PDF & "Temporary_File" & i & ".pdf", remoteLOC, Login_FTP, Haslo_FTP, True, 500)
+                                        'My.Computer.Network.UploadFile(Folder_PDF & "Temporary_File" & i & ".pdf", remoteLOC, Login_FTP, Haslo_FTP, True, 500)
+                                        Send_To_FTP_SFTP(Folder_PDF & "Temporary_File" & i & ".pdf", Wiersz(3), Folder_FTP, Login_FTP, Haslo_FTP, SFTP)
                                         My.Computer.FileSystem.DeleteFile(Plik)
                                         My.Computer.FileSystem.DeleteFile(Folder_PDF & "Temporary_File" & i & ".pdf")
                                         Wiersz(4) = "OK"
@@ -457,7 +459,8 @@ Module Module1
                                 Else 'jeśli mamy wysłac cały plik- to wysyłamy od razu
 
                                     'Wiersz(3) = Prefix & Referencja & Suffix & ".pdf" 'Nazwa pliku- zakomentowałem bo ten wiersz(3) jest już uzupełniony
-                                    My.Computer.Network.UploadFile(Plik, remoteLOC, Login_FTP, Haslo_FTP, True, 500)
+                                    'My.Computer.Network.UploadFile(Plik, remoteLOC, Login_FTP, Haslo_FTP, True, 500)
+                                    Send_To_FTP_SFTP(Plik, Wiersz(3), Folder_FTP, Login_FTP, Haslo_FTP, SFTP)
                                     If Not IsFileOpen(info) Then
                                             My.Computer.FileSystem.DeleteFile(Plik)
                                         End If
@@ -467,9 +470,7 @@ Module Module1
                                         Form_Main.Auto_Ilosc_Zapisanych = Form_Main.Auto_Ilosc_Zapisanych + 1
                                     End If
 
-
-
-                                    Else
+                            Else
                                 Wiersz(5) = "NOK"
                                 Nowa_Nazwa = System.IO.Path.GetFileName(Plik)
                                 Wiersz(3) = "Incorrect delivery note number inside PDF file"

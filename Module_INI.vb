@@ -143,9 +143,9 @@ Module Module_INI
         End If
 
         If My.Forms.Form_Ustawienia.Check_SFTP.Checked = True Then
-            SFTP = 1
+            SFTP = "SFTP"
         Else
-            SFTP = 0
+            SFTP = "FTP"
         End If
 
 
@@ -375,7 +375,7 @@ Module Module_INI
         If ini.RenameKey("OTHER_SETTINGS", "SFTP", "SFTP") Then
             SFTP = ini.GetSection("OTHER_SETTINGS").GetKey("SFTP").Value
         Else
-            ini.AddSection("OTHER_SETTINGS").AddKey("SFTP").Value = 0
+            ini.AddSection("OTHER_SETTINGS").AddKey("SFTP").Value = "FTP"
             ini.Save(Directory & "\Preferences.ini")
             SFTP = 0
         End If
@@ -505,7 +505,7 @@ Module Module_INI
                 My.Forms.Form_Ustawienia.R_English.Checked = True
         End Select
 
-        If SFTP = 1 Then
+        If SFTP = "SFTP" Then
             My.Forms.Form_Ustawienia.Check_SFTP.Checked = True
             My.Forms.Form_Ustawienia.L_PIC_SFTP.BackColor = Color.Lime
         Else

@@ -643,7 +643,7 @@ Public Class Form_Main
     End Sub
 
     Private Sub TestToolStripMenuItem_Click(sender As Object, e As EventArgs) Handles TestToolStripMenuItem.Click
-        Send_To_FTP_SFTP("C:\PDF TEST\test.txt", "ftp://s63.hekko.pl", "test@lukasc.pl", "-_Q@E-Pf78(L-6fx")
+        Send_To_FTP_SFTP("C:\PDF TEST\test.txt", "New.txt", "ftp://s63.hekko.pl", "test@lukasc.pl", "-_Q@E-Pf78(L-6fx")
     End Sub
 End Class
 

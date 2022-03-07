@@ -36,6 +36,7 @@ Partial Class Form_Main
         Me.LicencjaToolStripMenuItem = New System.Windows.Forms.ToolStripMenuItem()
         Me.UpdateToolStripMenuItem = New System.Windows.Forms.ToolStripMenuItem()
         Me.OProgramieToolStripMenuItem1 = New System.Windows.Forms.ToolStripMenuItem()
+        Me.TestToolStripMenuItem = New System.Windows.Forms.ToolStripMenuItem()
         Me.ProgramToolStripMenuItem = New System.Windows.Forms.ToolStripMenuItem()
         Me.UstawieniaToolStripMenuItem = New System.Windows.Forms.ToolStripMenuItem()
         Me.WyjdźToolStripMenuItem = New System.Windows.Forms.ToolStripMenuItem()
@@ -69,7 +70,6 @@ Partial Class Form_Main
         Me.ToolStripHide = New System.Windows.Forms.ToolStripStatusLabel()
         Me.ToolStripDisableRefreshing = New System.Windows.Forms.ToolStripStatusLabel()
         Me.Timer_Automat = New System.Windows.Forms.Timer(Me.components)
-        Me.TestToolStripMenuItem = New System.Windows.Forms.ToolStripMenuItem()
         Me.MenuStrip1.SuspendLayout()
         Me.ContextMenuStrip1.SuspendLayout()
         Me.GroupBox1.SuspendLayout()
@@ -99,7 +99,7 @@ Partial Class Form_Main
         Me.MenuStrip1.Items.AddRange(New System.Windows.Forms.ToolStripItem() {Me.PlikToolStripMenuItem, Me.PomocToolStripMenuItem1})
         Me.MenuStrip1.Location = New System.Drawing.Point(0, 0)
         Me.MenuStrip1.Name = "MenuStrip1"
-        Me.MenuStrip1.Size = New System.Drawing.Size(628, 35)
+        Me.MenuStrip1.Size = New System.Drawing.Size(628, 33)
         Me.MenuStrip1.TabIndex = 14
         Me.MenuStrip1.Text = "MenuStrip1"
         '
@@ -113,13 +113,13 @@ Partial Class Form_Main
         'UstawieniaToolStripMenuItem1
         '
         Me.UstawieniaToolStripMenuItem1.Name = "UstawieniaToolStripMenuItem1"
-        Me.UstawieniaToolStripMenuItem1.Size = New System.Drawing.Size(270, 34)
+        Me.UstawieniaToolStripMenuItem1.Size = New System.Drawing.Size(204, 34)
         Me.UstawieniaToolStripMenuItem1.Text = "Preferences"
         '
         'WyjścieToolStripMenuItem
         '
         Me.WyjścieToolStripMenuItem.Name = "WyjścieToolStripMenuItem"
-        Me.WyjścieToolStripMenuItem.Size = New System.Drawing.Size(270, 34)
+        Me.WyjścieToolStripMenuItem.Size = New System.Drawing.Size(204, 34)
         Me.WyjścieToolStripMenuItem.Text = "Exit"
         '
         'PomocToolStripMenuItem1
@@ -132,26 +132,32 @@ Partial Class Form_Main
         'ĄczenieFTPToolStripMenuItem
         '
         Me.ĄczenieFTPToolStripMenuItem.Name = "ĄczenieFTPToolStripMenuItem"
-        Me.ĄczenieFTPToolStripMenuItem.Size = New System.Drawing.Size(270, 34)
+        Me.ĄczenieFTPToolStripMenuItem.Size = New System.Drawing.Size(239, 34)
         Me.ĄczenieFTPToolStripMenuItem.Text = "Status FTP"
         '
         'LicencjaToolStripMenuItem
         '
         Me.LicencjaToolStripMenuItem.Name = "LicencjaToolStripMenuItem"
-        Me.LicencjaToolStripMenuItem.Size = New System.Drawing.Size(270, 34)
+        Me.LicencjaToolStripMenuItem.Size = New System.Drawing.Size(239, 34)
         Me.LicencjaToolStripMenuItem.Text = "Licence"
         '
         'UpdateToolStripMenuItem
         '
         Me.UpdateToolStripMenuItem.Name = "UpdateToolStripMenuItem"
-        Me.UpdateToolStripMenuItem.Size = New System.Drawing.Size(270, 34)
+        Me.UpdateToolStripMenuItem.Size = New System.Drawing.Size(239, 34)
         Me.UpdateToolStripMenuItem.Text = "Update"
         '
         'OProgramieToolStripMenuItem1
         '
         Me.OProgramieToolStripMenuItem1.Name = "OProgramieToolStripMenuItem1"
-        Me.OProgramieToolStripMenuItem1.Size = New System.Drawing.Size(270, 34)
+        Me.OProgramieToolStripMenuItem1.Size = New System.Drawing.Size(239, 34)
         Me.OProgramieToolStripMenuItem1.Text = "About program"
+        '
+        'TestToolStripMenuItem
+        '
+        Me.TestToolStripMenuItem.Name = "TestToolStripMenuItem"
+        Me.TestToolStripMenuItem.Size = New System.Drawing.Size(239, 34)
+        Me.TestToolStripMenuItem.Text = "Test"
         '
         'ProgramToolStripMenuItem
         '
@@ -233,7 +239,7 @@ Partial Class Form_Main
         Me.GroupBox1.Controls.Add(Me.Btn_Save)
         Me.GroupBox1.Controls.Add(Me.Btn_Start)
         Me.GroupBox1.Dock = System.Windows.Forms.DockStyle.Top
-        Me.GroupBox1.Location = New System.Drawing.Point(0, 35)
+        Me.GroupBox1.Location = New System.Drawing.Point(0, 33)
         Me.GroupBox1.Margin = New System.Windows.Forms.Padding(4, 5, 4, 5)
         Me.GroupBox1.Name = "GroupBox1"
         Me.GroupBox1.Padding = New System.Windows.Forms.Padding(4, 5, 4, 5)
@@ -447,12 +453,6 @@ Partial Class Form_Main
         '
         Me.Timer_Automat.Interval = 10000
         '
-        'TestToolStripMenuItem
-        '
-        Me.TestToolStripMenuItem.Name = "TestToolStripMenuItem"
-        Me.TestToolStripMenuItem.Size = New System.Drawing.Size(270, 34)
-        Me.TestToolStripMenuItem.Text = "Test"
-        '
         'Form_Main
         '
         Me.AutoScaleDimensions = New System.Drawing.SizeF(9.0!, 20.0!)
@@ -467,7 +467,7 @@ Partial Class Form_Main
         Me.Margin = New System.Windows.Forms.Padding(4, 5, 4, 5)
         Me.MaximizeBox = False
         Me.Name = "Form_Main"
-        Me.Text = "PDF ---> FTP 1.0.8"
+        Me.Text = "PDF ---> FTP 1.0.9"
         Me.MenuStrip1.ResumeLayout(False)
         Me.MenuStrip1.PerformLayout()
         Me.ContextMenuStrip1.ResumeLayout(False)
