@@ -1,4 +1,7 @@
-﻿Imports System.IO
+﻿'2022-07-12 Change in Client.UploadFile - Filename
+
+
+Imports System.IO
 Imports Renci.SshNet
 Module Module_SFTP
     Sub Send_To_FTP_SFTP(Filename_And_Path As String, New_Name As String, Address As String, Login As String, Password As String, Optional Sftp_Ftp As String = "FTP")
@@ -8,7 +11,8 @@ Module Module_SFTP
             Dim Client As SftpClient = New SftpClient(Address, Login, Password)
             Client.Connect()
             Using stream As Stream = File.OpenRead(Filename_And_Path)
-                Client.UploadFile(stream, Filename_And_Path)
+                'Client.UploadFile(stream, Filename_And_Path)
+                Client.UploadFile(stream, Filename)
             End Using
         Else
             If Right(Address, 1) <> "/" Or Right(Address, 1) <> "\" Then

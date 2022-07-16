@@ -132,32 +132,33 @@ Partial Class Form_Main
         'ĄczenieFTPToolStripMenuItem
         '
         Me.ĄczenieFTPToolStripMenuItem.Name = "ĄczenieFTPToolStripMenuItem"
-        Me.ĄczenieFTPToolStripMenuItem.Size = New System.Drawing.Size(239, 34)
+        Me.ĄczenieFTPToolStripMenuItem.Size = New System.Drawing.Size(270, 34)
         Me.ĄczenieFTPToolStripMenuItem.Text = "Status FTP"
         '
         'LicencjaToolStripMenuItem
         '
         Me.LicencjaToolStripMenuItem.Name = "LicencjaToolStripMenuItem"
-        Me.LicencjaToolStripMenuItem.Size = New System.Drawing.Size(239, 34)
+        Me.LicencjaToolStripMenuItem.Size = New System.Drawing.Size(270, 34)
         Me.LicencjaToolStripMenuItem.Text = "Licence"
         '
         'UpdateToolStripMenuItem
         '
         Me.UpdateToolStripMenuItem.Name = "UpdateToolStripMenuItem"
-        Me.UpdateToolStripMenuItem.Size = New System.Drawing.Size(239, 34)
+        Me.UpdateToolStripMenuItem.Size = New System.Drawing.Size(270, 34)
         Me.UpdateToolStripMenuItem.Text = "Update"
         '
         'OProgramieToolStripMenuItem1
         '
         Me.OProgramieToolStripMenuItem1.Name = "OProgramieToolStripMenuItem1"
-        Me.OProgramieToolStripMenuItem1.Size = New System.Drawing.Size(239, 34)
+        Me.OProgramieToolStripMenuItem1.Size = New System.Drawing.Size(270, 34)
         Me.OProgramieToolStripMenuItem1.Text = "About program"
         '
         'TestToolStripMenuItem
         '
         Me.TestToolStripMenuItem.Name = "TestToolStripMenuItem"
-        Me.TestToolStripMenuItem.Size = New System.Drawing.Size(239, 34)
+        Me.TestToolStripMenuItem.Size = New System.Drawing.Size(270, 34)
         Me.TestToolStripMenuItem.Text = "Test"
+        Me.TestToolStripMenuItem.Visible = False
         '
         'ProgramToolStripMenuItem
         '

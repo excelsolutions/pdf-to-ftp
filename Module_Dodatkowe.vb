@@ -22,7 +22,7 @@ Imports System.Runtime.InteropServices 'do procesu ktory blokuje plik
 Module Module_Dodatkowe
     Public Sub Sprawdz_Aktualizacje()
         Try
-            AutoUpdater.Start("http://www.excelsolutions.pl/pliki/PDF_To_FTP/Pdf-To_FTP.xml")
+            AutoUpdater.Start("http://lukasc.webd.pro/pliki/pdftoftp/Pdf-To_FTP.xml")
         Catch ex As Exception
 
         End Try

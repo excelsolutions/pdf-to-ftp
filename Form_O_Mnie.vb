@@ -4,13 +4,8 @@ Public Class Form_O_Mnie
         Me.Hide()
     End Sub
 
-    Private Sub LinkMail_LinkClicked(sender As Object, e As LinkLabelLinkClickedEventArgs) Handles LinkMail.LinkClicked
-        Try
-            Process.Start("Mailto:" & LinkMail.Text)
-            My.Computer.Clipboard.SetText(LinkMail.Text)
-        Catch ex As Exception
+    Private Sub LinkMail_LinkClicked(sender As Object, e As LinkLabelLinkClickedEventArgs)
 
-        End Try
 
     End Sub
 
@@ -23,7 +18,7 @@ Public Class Form_O_Mnie
 
     Private Sub LinkWWW_LinkClicked(sender As Object, e As LinkLabelLinkClickedEventArgs) Handles LinkWWW.LinkClicked
         Try
-            Dim webAddress As String = "http://www.excelsolutions.pl"
+            Dim webAddress As String = "https://github.com/excelsolutions/pdf-to-ftp"
             Process.Start(webAddress)
         Catch ex As Exception
 
@@ -38,7 +33,7 @@ Public Class Form_O_Mnie
 
     Private Sub L_Wersja_Click(sender As Object, e As EventArgs) Handles L_Wersja.Click
         Try
-            Dim webAddress As String = "http://excelsolutions.pl/pdf-to-ftp/"
+            Dim webAddress As String = "https://github.com/excelsolutions/pdf-to-ftp"
             Process.Start(webAddress)
         Catch ex As Exception
 
