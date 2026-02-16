@@ -1,28 +1,26 @@
-﻿'Niniejszy program jest wolnym oprogramowaniem; możesz go
-'   rozprowadzać dalej i/lub modyfikować na warunkach Powszechnej
-'   Licencji Publicznej GNU, wydanej przez Fundację Wolnego
-'   Oprogramowania -według wersji 3 tej Licencji lub (według twojego
-'   wyboru) którejś z późniejszych wersji.
+﻿'Program PDF-to-SFTP
+'
+'Niniejsze oprogramowanie jest dostarczane "takim, jakie jest", bez jakiejkolwiek gwarancji,
+'wyraźnej lub dorozumianej. W żadnym wypadku autorzy ani posiadacze praw autorskich nie ponoszą
+'odpowiedzialności za jakiekolwiek roszczenia, szkody lub inne zobowiązania, czy to wynikające
+'z umowy, czynu niedozwolonego czy w inny sposób, powstałe w związku z oprogramowaniem lub
+'korzystaniem z niego.
+'
+'Pobieranie i użytkowanie programu jest dobrowolne i odbywa się na wyłączną odpowiedzialność użytkownika.
+'
+'Kod źródłowy dostępny pod adresem: https://github.com/excelsolutions/PDF-to-FTP
+'
+'Program korzysta z biblioteki PdfPig (UglyToad.PdfPig) dostępnej na licencji Apache 2.0.
+'Strona projektu: https://github.com/UglyToad/PdfPig
+'Zastąpiono iTextSharp biblioteką PdfPig (Apache 2.0)
 
-'   Niniejszy program rozpowszechniany jest z nadzieją, iż będzie On
-'   użyteczny -jednak BEZ JAKIEJKOLWIEK GWARANCJI, nawet domyślnej
-'   gwarancji PRZYDATNOŚCI HANDLOWEJ albo PRZYDATNOŚCI Do OKREŚLONYCH
-'   ZASTOSOWAŃ.W celu uzyskania bliższych informacji sięgnij do     Powszechnej Licencji Publicznej GNU.
-
-'   Z pewnością wraz z niniejszym programem otrzymałeś też egzemplarz
-'   Powszechnej Licencji Publicznej GNU (GNU General Public License);
-'   jeśli nie - zobacz <http://www.gnu.org/licenses/>.
-'Program korzysta z bibliotek iTEXT dostępnych na stronie https://itextpdf.com/ na licencji AGPL. Warunki użytkowania 
-'znajduja się na stronie: http://itextpdf.com/terms-of-use/
-'Autor: Łukasz Morawski, e-mail: lukasz.r.morawski@gmail.com
 Imports System.ComponentModel
 Imports System.IO
 Imports System.Net
 Imports System.Runtime.InteropServices
 Imports System.Threading
-'https://social.msdn.microsoft.com/Forums/en-US/7945dbd9-5836-4eaa-b8fe-32ad70002e43/copying-a-file-to-a-ftp-server-in-vbnet-2005-help-please?forum=vblanguage
+
 Public Class Form_Main
-    'Throw New System.Exception("An exception has occurred.") 'ZASYMULOWANIE BŁEDU Symulacja błedu
     Public Licznik As Long = 0
     'Zmienne do automatyzacji:
     Public Auto_Start_Time As String
@@ -61,13 +59,11 @@ Public Class Form_Main
                     Try
                         Zapisz_Log_Txt(ex.Message)
                     Catch ex1 As Exception
-
                     End Try
 
                     ToolStripError.Text = "Error while file processing. Please contact with the programmer."
                     ToolStripError.ToolTipText = ToolStripError.Text
                     ToolStripError.ForeColor = Color.Red
-
                 End Try
 
             ElseIf Not Directory.Exists(Folder_PDF) Then
@@ -82,22 +78,6 @@ Public Class Form_Main
                 ToolStripError.ForeColor = Color.Red
             End If
         End If
-
-
-
-
-        '-- STARA DZIAŁAJĄCA WERSJA --
-        'Dim strFileName As String
-        'OpenFileDialog1.InitialDirectory = "C:\"
-        'OpenFileDialog1.FileName = ".pdf"
-        'OpenFileDialog1.Title = "Otwórz plik PDF"
-        'OpenFileDialog1.Filter = "Pliki PDF|*.pdf"
-        'OpenFileDialog1.ShowDialog()
-        'strFileName = OpenFileDialog1.FileName
-
-        'My.Forms.Form_Podglad.Rich_Podglad.Text = ParsePdfText(strFileName)
-        ''4 litera, 9 liter
-        'My.Forms.Form_Podglad.Show()
     End Sub
 
     Private Sub Form_Main_Load(sender As Object, e As EventArgs) Handles MyBase.Load
@@ -115,7 +95,9 @@ Public Class Form_Main
         Me.Height = TitlebarHeight + BorderWidth * 2 + GroupBox1.Height + MenuStrip1.Height + StatusStrip1.Height
         'Me.Width = Group_FTP.Left
         Aktualizacja_Statusow(True) 'kolorki, stan ftp itp
-        Sprawdz_Aktualizacje()
+
+        ' Usunięto wywołanie Sprawdz_Aktualizacje()
+
         If IsNumeric(CLng(Interval)) And CLng(Interval) > 0 Then
             Timer_Automat.Interval = CLng(Interval) * 1000
         End If
@@ -128,36 +110,17 @@ Public Class Form_Main
         Timer_Checker.Enabled = True
     End Sub
 
-
-
-
-
-
-
     Private Sub Btn_Ustawienia_Click(sender As Object, e As EventArgs)
-
     End Sub
 
-
-
-
-
     Private Sub Form_Main_Resize(sender As Object, e As EventArgs) Handles Me.Resize
-
-
     End Sub
 
     Private Sub ToolStripMenuOtworz_Click(sender As Object, e As EventArgs) Handles ToolStripMenuOtworz.Click
-
-
-        'Dim BorderWidth As Integer = (Me.Width - Me.ClientSize.Width) / 2
-        ' Dim TitlebarHeight As Integer = Me.Height - Me.ClientSize.Height - 2 * BorderWidth
-
     End Sub
 
     Private Sub ToolStripMenuPrzeslij_Click(sender As Object, e As EventArgs) Handles ToolStripMenuPrzeslij.Click
         If Not Directory.Exists(Folder_PDF) Then
-
             ToolStripError.Text = "Indicated directory with pdf files doesn't exist. Please select correct directory"
             ToolStripError.ToolTipText = ToolStripError.Text
             ToolStripError.ForeColor = Color.Red
@@ -172,26 +135,18 @@ Public Class Form_Main
             Else
                 Przetworz_Pliki2(True, True, False, True)
             End If
-
         End If
     End Sub
 
     Private Sub ToolStripMenuZamknij_Click(sender As Object, e As EventArgs) Handles ToolStripMenuZamknij.Click
         Me.Dispose()
-
     End Sub
 
     Private Sub NotifyIcon1_MouseDoubleClick(sender As Object, e As MouseEventArgs) Handles NotifyIcon1.MouseDoubleClick
-
-
     End Sub
-
-
 
     Private Sub Timer_Checker_Tick(sender As Object, e As EventArgs) Handles Timer_Checker.Tick
         Dim i As Integer = 0
-        'wyłaczone automatyczne aktualizacje
-        'Poniższa część wykonuje sie stale, nieustannie
         Dim Folder As String = Folder_PDF
         If Folder <> "" Then
             Try
@@ -204,22 +159,15 @@ Public Class Form_Main
                 Try
                     Zapisz_Log_Txt(ex.Message)
                 Catch ex1 As Exception
-
                 End Try
-
                 My.Forms.Form_Main.L_LIczba_Plikow.Text = 0
             End Try
         End If
-
         My.Forms.Form_Main.L_LIczba_Plikow.Text = i
-        'PROBLEM: Brak odswiezania ilosci plików count
     End Sub
-
-
 
     Private Sub L_LIczba_Plikow_Click(sender As Object, e As EventArgs) Handles L_LIczba_Plikow.Click
         Aktualizacja_Statusow(True)
-
         Try
             ToolStripError.Text = "ok"
             ToolStripError.ToolTipText = ToolStripError.Text
@@ -239,19 +187,14 @@ Public Class Form_Main
             Try
                 Zapisz_Log_Txt(ex.Message)
             Catch ex1 As Exception
-
             End Try
-
             ToolStripError.Text = "Unable to show list of the files. Please contact with the programmer"
             ToolStripError.ToolTipText = ToolStripError.Text
             ToolStripError.ForeColor = Color.Red
         End Try
-
     End Sub
 
-
     Private Sub MenuStrip1_ItemClicked(sender As Object, e As ToolStripItemClickedEventArgs) Handles MenuStrip1.ItemClicked
-
     End Sub
 
     Private Sub OProgramieToolStripMenuItem1_Click(sender As Object, e As EventArgs) Handles OProgramieToolStripMenuItem1.Click
@@ -261,59 +204,14 @@ Public Class Form_Main
     Private Sub UstawieniaToolStripMenuItem1_Click(sender As Object, e As EventArgs) Handles UstawieniaToolStripMenuItem1.Click
         Me.Hide()
         Form_Ustawienia.Show()
-        'Form_Password.ShowDialog()
-
-
-
-        'Timer_Automat.Enabled = False
-        ' If InputBox("Enter the password:", "Password") = "qwerty1" Then
-        ' Form_Ustawienia.ShowDialog()
-        'End If
-
-
     End Sub
 
     Private Sub WyjścieToolStripMenuItem_Click(sender As Object, e As EventArgs) Handles WyjścieToolStripMenuItem.Click
         Me.Dispose()
     End Sub
 
-
-
-
-
     Private Sub Timer_PIC_Tick(sender As Object, e As EventArgs) Handles Timer_PIC.Tick
-        'Iter = Iter + 1
-        'If Iter Mod 2 = 0 Then
-
-        '    ToolStripStatus_PIC.ForeColor = Color.Red
-        '    Select Case ToolStripStatus_PIC.Text.Count
-        '        Case 1
-        '            ToolStripStatus_PIC.Text = "ll"
-        '        Case 2
-        '            ToolStripStatus_PIC.Text = "lll"
-        '        Case 3
-        '            ToolStripStatus_PIC.Text = "llll"
-        '        Case 4
-        '            ToolStripStatus_PIC.Text = "lllll"
-        '        Case 5
-        '            Aktualizacja_Statusow(True)
-        '            ToolStripStatus_PIC.Text = "l"
-        '    End Select
-        'Else
-        '    ToolStripStatus_PIC.ForeColor = StatusStrip1.BackColor
-        'End If
-        'ToolStripStatus_PIC.Visible = True
-        'ToolStripStatus_PIC_Napis.Visible = True
-        'If L_PIC_FTP.BackColor = Color.Lime Then
-        '    ToolStripStatus_PIC.Visible = False
-        '    ToolStripStatus_PIC_Napis.Visible = False
-        '    Timer_PIC.Enabled = False
-        'End If
-
-        'If Iter > 10000 Then Iter = 0
     End Sub
-
-
 
     Private Sub LicencjaToolStripMenuItem_Click(sender As Object, e As EventArgs) Handles LicencjaToolStripMenuItem.Click
         Form_Licencja.Show()
@@ -321,9 +219,7 @@ Public Class Form_Main
 
     Private Sub Button1_Click_1(sender As Object, e As EventArgs) Handles Btn_Save.Click
         Try
-
             Aktualizacja_Statusow(True)
-
             If Stan_Folderow_Lokalnych = True And L_LIczba_Plikow.Text > 0 Then
                 ToolStripError.Text = ""
                 ToolStripError.ToolTipText = ToolStripError.Text
@@ -335,7 +231,6 @@ Public Class Form_Main
                 Else
                     Przetworz_Pliki2(False, True, False, True)
                 End If
-
             Else
                 ToolStripError.Text = "No files inside indicated directory"
                 ToolStripError.ToolTipText = ToolStripError.Text
@@ -350,9 +245,7 @@ Public Class Form_Main
             Try
                 Zapisz_Log_Txt(ex.Message)
             Catch ex1 As Exception
-
             End Try
-
             ToolStripError.Text = "Unable to show list of files. Please contact with the programmer"
             ToolStripError.ToolTipText = ToolStripError.Text
             ToolStripError.ForeColor = Color.Red
@@ -360,12 +253,6 @@ Public Class Form_Main
     End Sub
 
     Private Sub LL_Ilosc_plikow_Click(sender As Object, e As EventArgs) Handles LL_Ilosc_plikow.Click
-
-
-    End Sub
-
-    Private Sub UpdateToolStripMenuItem_Click(sender As Object, e As EventArgs) Handles UpdateToolStripMenuItem.Click
-        Sprawdz_Aktualizacje()
     End Sub
 
     Private Sub ToolStripAutomation_ButtonClick(sender As Object, e As EventArgs) Handles ToolStripAutomation.ButtonClick
@@ -379,7 +266,6 @@ Public Class Form_Main
     End Sub
 
     Private Sub GroupBox1_Enter(sender As Object, e As EventArgs) Handles GroupBox1.Enter
-
     End Sub
 
     Private Sub Timer_Automat_Tick(sender As Object, e As EventArgs) Handles Timer_Automat.Tick
@@ -392,24 +278,21 @@ Public Class Form_Main
             Auto_Ilosc_Cykli = Licznik
             Form_Ustawienia.T_Czas_Startu_Automatu.Text = Auto_Start_Time
             Form_Ustawienia.T_Liczba_Cykli.Text = Auto_Ilosc_Cykli
-            Form_Ustawienia.T_Liczba_Bledow.Text = Auto_Ilosc_Error 'NICE TO HAVE: Zlicza errory nawet jak raz juz je przetworzył
+            Form_Ustawienia.T_Liczba_Bledow.Text = Auto_Ilosc_Error
             Form_Ustawienia.T_Liczba_Zmienionych_Plikow.Text = Auto_Ilosc_Zapisanych
 
-            ' L_Start_Time.Text = Auto_Start_Time
             L_Count_Loops.Text = Auto_Ilosc_Cykli
             L_Count_Files.Text = Auto_Ilosc_Zapisanych
             L_Current_Interval.Text = Timer_Automat.Interval / 1000 & " s"
 
-            ' Auto_Ilosc_Zapisanych=
-            ' Auto_Ilosc_Error=
             Aktualizacja_Statusow(True)
 
             If Stan_Folderow_Lokalnych = True And L_LIczba_Plikow.Text > 0 Then
                 ToolStripError.Text = ""
                 ToolStripError.ToolTipText = ToolStripError.Text
                 ToolStripError.ForeColor = Color.Green
-                Form_Operacje.Lista_Operacji.Items.Clear() 'wyczyść formę z operacjami. Dałem ostatni parametr true bo na podstawie operacji sprawdza duble
-                If Automation = 0 Then '2020-06-03 właczyłem wysylanie na ftp w przypadku automatu
+                Form_Operacje.Lista_Operacji.Items.Clear()
+                If Automation = 0 Then
                     If Work_On_Copies = True Then
                         Przetworz_Pliki2(False, True, True, True)
                     Else
@@ -422,13 +305,10 @@ Public Class Form_Main
                         Przetworz_Pliki2(True, True, False, True)
                     End If
                 End If
-
-
             Else
                 If Automation = 0 Then
                     ToolStripError.Text = "No files inside indicated directory"
                 End If
-
                 ToolStripError.ToolTipText = ToolStripError.Text
                 ToolStripError.ForeColor = Color.Red
             End If
@@ -441,45 +321,31 @@ Public Class Form_Main
             Try
                 Zapisz_Log_Txt(ex.Message)
             Catch ex1 As Exception
-
             End Try
-
 
             ToolStripError.Text = "Unable to show list of files. Please contact with the programmer"
             ToolStripError.ToolTipText = ToolStripError.Text
             ToolStripError.ForeColor = Color.Red
         End Try
-
-
-
-
     End Sub
 
-
-
     Private Sub ToolStripError_Click(sender As Object, e As EventArgs) Handles ToolStripError.Click
-
     End Sub
 
     Private Sub Label5_Click(sender As Object, e As EventArgs)
-
     End Sub
 
     Private Sub Form_Main_Closing(sender As Object, e As CancelEventArgs) Handles Me.Closing
-
     End Sub
 
     Private Sub ToolStripHide_Click(sender As Object, e As EventArgs) Handles ToolStripHide.Click
         If MsgBox("This option will minimize program to system tray. You can turn off program only from task manager. Continue?", vbYesNo, "Hide program") = vbYes Then
-            'https://www.dreamincode.net/forums/topic/53448-minimize-to-system-tray/
             Me.WindowState = FormWindowState.Minimized
             Me.Visible = False
         End If
-
     End Sub
 
     Private Sub ToolTip1_Popup(sender As Object, e As PopupEventArgs) Handles ToolTip1.Popup
-
     End Sub
 
     Private Sub ToolStripStatusLabel2_Click(sender As Object, e As EventArgs) Handles ToolStripDisableRefreshing.Click
@@ -487,7 +353,6 @@ Public Class Form_Main
             ToolStripDisableRefreshing.BorderStyle = Border3DStyle.Sunken
             ToolStripDisableRefreshing.Text = "Check Off"
             ToolStripDisableRefreshing.BackColor = Color.Red
-
         Else
             ToolStripDisableRefreshing.BorderStyle = Border3DStyle.Raised
             ToolStripDisableRefreshing.Text = "Check On"
@@ -497,7 +362,6 @@ Public Class Form_Main
 
     Private Sub PictureBox1_Click(sender As Object, e As EventArgs) Handles Pic_Lista.Click
         Aktualizacja_Statusow(True)
-
         Try
             ToolStripError.Text = "ok"
             ToolStripError.ToolTipText = ToolStripError.Text
@@ -506,7 +370,7 @@ Public Class Form_Main
             Form_Operacje.Show()
             Form_Operacje.Lista_Operacji.Items.Clear()
             If Stan_Folderow_Lokalnych = True Then
-                Przetworz_Pliki2(False, False, False, True) 'TEST algorytmu w wersji 2.0
+                Przetworz_Pliki2(False, False, False, True)
             End If
             If Stan_Folderow_Lokalnych = True Then
                 Timer_PIC.Enabled = False
@@ -517,9 +381,7 @@ Public Class Form_Main
             Try
                 Zapisz_Log_Txt(ex.Message)
             Catch ex1 As Exception
-
             End Try
-
             ToolStripError.Text = "Unable to show list of the files. Please contact with the programmer"
             ToolStripError.ToolTipText = ToolStripError.Text
             ToolStripError.ForeColor = Color.Red
@@ -527,11 +389,9 @@ Public Class Form_Main
     End Sub
 
     Private Sub Panel1_Paint(sender As Object, e As PaintEventArgs) Handles Panel1.Paint
-
     End Sub
 
     Private Sub Btn_Wyslij_FTP_Click(sender As Object, e As EventArgs)
-
         Aktualizacja_Statusow(True)
         If IsConnectedToInternet() = False Then
             ToolStripError.Text = "No internet connection. Check again later"
@@ -561,13 +421,11 @@ Public Class Form_Main
                     Try
                         Zapisz_Log_Txt(ex.Message)
                     Catch ex1 As Exception
-
                     End Try
 
                     ToolStripError.Text = "Error while file processing. Please contact with the programmer."
                     ToolStripError.ToolTipText = ToolStripError.Text
                     ToolStripError.ForeColor = Color.Red
-
                 End Try
 
             ElseIf Not Directory.Exists(Folder_PDF) Then
@@ -583,6 +441,7 @@ Public Class Form_Main
             End If
         End If
     End Sub
+
     Public Sub Sprawdz_FTP()
         Try
             If Ftp_Exist() Then
@@ -590,60 +449,45 @@ Public Class Form_Main
             Else
                 MsgBox("FTP: " & Folder_FTP & " ,dla loginu: " & Login_FTP & " działa niepoprawnie!.", vbOKOnly + vbExclamation, "Błąd!")
             End If
-
-
         Catch ex As Exception
-
         End Try
-
     End Sub
 
     Private Sub ĄczenieFTPToolStripMenuItem_Click(sender As Object, e As EventArgs) Handles ĄczenieFTPToolStripMenuItem.Click
         Sprawdz_FTP()
     End Sub
+
     Public Function Ftp_Exist() As Boolean
-
         Ftp_Exist = False
-        'WYŁĄCZENIE SPRAWDZANIA FTP !!!!!!!!
-        ' If 0 = 1 Then
         If Folder_FTP <> "" Then
-            Dim request =
-           DirectCast(WebRequest.Create(Folder_FTP), FtpWebRequest)
-
-            request.Credentials =
-                New NetworkCredential(Login_FTP, Haslo_FTP)
-
+            Dim request = DirectCast(WebRequest.Create(Folder_FTP), FtpWebRequest)
+            request.Credentials = New NetworkCredential(Login_FTP, Haslo_FTP)
             request.Method = WebRequestMethods.Ftp.ListDirectory
-
             Try
-                Using response As FtpWebResponse =
-                DirectCast(request.GetResponse(), FtpWebResponse)
-                    ' Folder exists here
+                Using response As FtpWebResponse = DirectCast(request.GetResponse(), FtpWebResponse)
                     Ftp_Exist = True
                 End Using
-
             Catch ex As WebException
-
-                Dim response As FtpWebResponse =
-                DirectCast(ex.Response, FtpWebResponse)
-                'Does not exist
-                If response.StatusCode =
-                FtpStatusCode.ActionNotTakenFileUnavailable Then
+                Dim response As FtpWebResponse = DirectCast(ex.Response, FtpWebResponse)
+                If response.StatusCode = FtpStatusCode.ActionNotTakenFileUnavailable Then
                     Ftp_Exist = False
                 End If
             End Try
         Else
             Ftp_Exist = False
         End If
-        ' End If
     End Function
 
     Private Sub ToolStripStatusLabel2_Click_1(sender As Object, e As EventArgs)
-
     End Sub
 
     Private Sub TestToolStripMenuItem_Click(sender As Object, e As EventArgs) Handles TestToolStripMenuItem.Click
+    End Sub
 
+    Private Sub ToolStripStatusLabel1_Click(sender As Object, e As EventArgs) Handles ToolStripStatusLabel1.Click
+    End Sub
+
+    Private Sub ManualToolStripMenuItem_Click(sender As Object, e As EventArgs) Handles ManualToolStripMenuItem.Click
+        Form_Instrukcja.Show()
     End Sub
 End Class
-

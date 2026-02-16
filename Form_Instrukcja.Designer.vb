@@ -23,30 +23,30 @@ Partial Class Form_Instrukcja
     <System.Diagnostics.DebuggerStepThrough()>
     Private Sub InitializeComponent()
         Dim resources As System.ComponentModel.ComponentResourceManager = New System.ComponentModel.ComponentResourceManager(GetType(Form_Instrukcja))
-        Me.Label1 = New System.Windows.Forms.Label()
+        Me.Rich_Manual = New System.Windows.Forms.RichTextBox()
         Me.SuspendLayout()
         '
-        'Label1
+        'Rich_Manual
         '
-        Me.Label1.Font = New System.Drawing.Font("Microsoft Sans Serif", 12.0!, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, CType(238, Byte))
-        Me.Label1.Location = New System.Drawing.Point(2, -2)
-        Me.Label1.Name = "Label1"
-        Me.Label1.Size = New System.Drawing.Size(761, 338)
-        Me.Label1.TabIndex = 0
-        Me.Label1.Text = resources.GetString("Label1.Text")
+        Me.Rich_Manual.Location = New System.Drawing.Point(12, 12)
+        Me.Rich_Manual.Name = "Rich_Manual"
+        Me.Rich_Manual.Size = New System.Drawing.Size(1176, 653)
+        Me.Rich_Manual.TabIndex = 1
+        Me.Rich_Manual.Text = ""
         '
         'Form_Instrukcja
         '
-        Me.AutoScaleDimensions = New System.Drawing.SizeF(6.0!, 13.0!)
+        Me.AutoScaleDimensions = New System.Drawing.SizeF(9.0!, 20.0!)
         Me.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font
-        Me.ClientSize = New System.Drawing.Size(800, 450)
-        Me.Controls.Add(Me.Label1)
+        Me.ClientSize = New System.Drawing.Size(1200, 682)
+        Me.Controls.Add(Me.Rich_Manual)
         Me.Icon = CType(resources.GetObject("$this.Icon"), System.Drawing.Icon)
+        Me.Margin = New System.Windows.Forms.Padding(4, 5, 4, 5)
         Me.Name = "Form_Instrukcja"
         Me.Text = "Form_Instrukcja"
         Me.ResumeLayout(False)
 
     End Sub
 
-    Friend WithEvents Label1 As Label
+    Friend WithEvents Rich_Manual As RichTextBox
 End Class

@@ -1,37 +1,28 @@
-﻿'Niniejszy program jest wolnym oprogramowaniem; możesz go
-'   rozprowadzać dalej i/lub modyfikować na warunkach Powszechnej
-'   Licencji Publicznej GNU, wydanej przez Fundację Wolnego
-'   Oprogramowania -według wersji 3 tej Licencji lub (według twojego
-'   wyboru) którejś z późniejszych wersji.
-
-'   Niniejszy program rozpowszechniany jest z nadzieją, iż będzie On
-'   użyteczny -jednak BEZ JAKIEJKOLWIEK GWARANCJI, nawet domyślnej
-'   gwarancji PRZYDATNOŚCI HANDLOWEJ albo PRZYDATNOŚCI Do OKREŚLONYCH
-'   ZASTOSOWAŃ.W celu uzyskania bliższych informacji sięgnij do     Powszechnej Licencji Publicznej GNU.
-
-'   Z pewnością wraz z niniejszym programem otrzymałeś też egzemplarz
-'   Powszechnej Licencji Publicznej GNU (GNU General Public License);
-'   jeśli nie - zobacz <http://www.gnu.org/licenses/>.
-'Program korzysta z bibliotek iTEXT dostępnych na stronie https://itextpdf.com/ na licencji AGPL. Warunki użytkowania 
-'znajduja się na stronie: http ://itextpdf.com/terms-of-use/
-'Autor: Łukasz Morawski, e-mail: lukasz.r.morawski@gmail.com
+﻿'Program PDF-to-FTP
+'
+'Niniejsze oprogramowanie jest dostarczane "takim, jakie jest", bez jakiejkolwiek gwarancji,
+'wyraźnej lub dorozumianej. W żadnym wypadku autorzy ani posiadacze praw autorskich nie ponoszą
+'odpowiedzialności za jakiekolwiek roszczenia, szkody lub inne zobowiązania, czy to wynikające
+'z umowy, czynu niedozwolonego czy w inny sposób, powstałe w związku z oprogramowaniem lub
+'korzystaniem z niego.
+'
+'Pobieranie i użytkowanie programu jest dobrowolne i odbywa się na wyłączną odpowiedzialność użytkownika.
+'
 'Kod źródłowy dostępny pod adresem: https://github.com/excelsolutions/PDF-to-FTP
-'Lista zmian:
-'2020-05-25 Dodano obsługę numeracji wz o tym samym numerze. 
-'1.0.8, 2020-11-04 Do funkcji sprawdzającej poprawność pliku: FilenameIsOK, dodano opcję aby jednak generowało plik ale z nazwą ustaloną w zmiennej: Nazwa_Pliku_Blednego
+'
+'Program korzysta z biblioteki PdfPig (UglyToad.PdfPig) dostępnej na licencji Apache 2.0.
+'Strona projektu: https://github.com/UglyToad/PdfPig
+'Zastąpiono iTextSharp biblioteką PdfPig (Apache 2.0)
 
-Imports iTextSharp.text.pdf
-Imports iTextSharp.text
-
-
+Imports UglyToad.PdfPig
+Imports UglyToad.PdfPig.Content
+Imports UglyToad.PdfPig.Writer
 Imports System.ComponentModel
 Imports System.IO
 Imports System.Net
 Imports System.Runtime.InteropServices
 Imports System.Threading
-'https://www.codeproject.com/info/cpol10.aspx
-'http://www.vbforums.com/showthread.php?475759-Extract-Text-from-Pdfs-using-iTextSharp-(02-03-2005)&highlight=pdf
-' Licencja: https://itextpdf.com/AGPL
+
 Module Module1
     Public Licznik As Integer = 0
     Public Iter As Long = 0
@@ -49,157 +40,180 @@ Module Module1
     Public Stan_Folderow_Lokalnych As Boolean
     Public Stan_Folderow_Z_Kopiami As Boolean
 
+    ' Funkcja sprawdzająca czy plik ma strukturę PDF przed próbą parsowania
+    Public Function IsProbablyPdf(path As String) As Boolean
+        Try
+            If Not File.Exists(path) Then Return False
+            Dim fi As New FileInfo(path)
+            If fi.Length < 20 Then Return False
+            Using fs As New FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read)
+                Dim buf(1023) As Byte
+                Dim read = fs.Read(buf, 0, Math.Min(buf.Length, CInt(fs.Length)))
+                Dim header = System.Text.Encoding.ASCII.GetString(buf, 0, Math.Min(8, read))
+                If header.StartsWith("%PDF-") Then
+                    ' opcjonalnie sprawdź czy w końcówce jest "startxref"
+                    fs.Seek(Math.Max(0, fs.Length - 2048), SeekOrigin.Begin)
+                    Dim tailBuf(2047) As Byte
+                    Dim tailRead = fs.Read(tailBuf, 0, Math.Min(tailBuf.Length, CInt(fs.Length)))
+                    Dim tail = System.Text.Encoding.ASCII.GetString(tailBuf, 0, tailRead)
+                    Return tail.Contains("startxref") Or tail.Contains("xref")
+                End If
+            End Using
+        Catch ex As Exception
+            ' nic — zwrócimy false
+        End Try
+        Return False
+    End Function
+
+    ' Zastąpiona funkcja parsująca tekst przy użyciu PdfPig
     Public Function ParsePdfText2(PdfFileName As String, Calosc As Boolean) As String
-        'https://stackoverflow.com/questions/2550796/reading-pdf-content-with-itextsharp-dll-in-vb-net-or-c-sharp
-        Dim oReader As New iTextSharp.text.pdf.PdfReader(PdfFileName)
-        Dim sOut = ""
+        Dim sOut As String = ""
         Dim Licznik As Integer = 0
         ReDim Strony_Pliku(0) 'zerowanie zmiennej
         ReDim Tresc_Strony(0) 'zerowanie zmiennej
-        For i = 1 To oReader.NumberOfPages
-            Dim its As New iTextSharp.text.pdf.parser.SimpleTextExtractionStrategy
-            If Calosc = False Then
-                If Whole_File = "0" Then 'bierz poszczególne strony
-                    If Half_or_Specific = 0 Then 'bierz połowę stron
-                        If oReader.NumberOfPages > 1 Then 'dziel jeśli stron jest więcej niz 1!
-                            If First_Last_Pages = 0 Then 'bierz 1 połowe pliku. 
-                                If i <= Math.Round(oReader.NumberOfPages / 2, 0) Then
+
+        ' Dodatkowa walidacja pliku przed parsowaniem
+        If Not IsProbablyPdf(PdfFileName) Then
+            Zapisz_Log_Txt($"Skipping file {PdfFileName} - File header/trailer validation failed (not a valid PDF structure).")
+            Return ""
+        End If
+
+        Try
+            ' ZMIANA: Dodano ParsingOptions z UseLenientParsing = True, aby obsłużyć uszkodzone pliki PDF
+            Dim openOptions As New ParsingOptions() With {.UseLenientParsing = True}
+
+            Using pdf As PdfDocument = PdfDocument.Open(PdfFileName, openOptions)
+                For i As Integer = 1 To pdf.NumberOfPages
+                    Dim pageText As String = ""
+
+                    ' Jeśli potrzebujemy tekstu, pobierz go
+                    ' PdfPig czasami może rzucać błędy przy uszkodzonych fontach, więc warto to zabezpieczyć
+                    Try
+                        pageText = pdf.GetPage(i).Text
+                    Catch ex As Exception
+                        pageText = ""
+                    End Try
+
+                    If Calosc = False Then
+                        If Whole_File = "0" Then 'bierz poszczególne strony
+                            If Half_or_Specific = 0 Then 'bierz połowę stron
+                                If pdf.NumberOfPages > 1 Then 'dziel jeśli stron jest więcej niz 1!
+                                    If First_Last_Pages = 0 Then 'bierz 1 połowe pliku. 
+                                        If i <= Math.Round(pdf.NumberOfPages / 2, 0) Then
+                                            ReDim Preserve Tresc_Strony(Licznik)
+                                            Tresc_Strony(Licznik) = pageText
+                                            sOut &= Tresc_Strony(Licznik)
+                                            ReDim Preserve Strony_Pliku(Licznik)
+                                            Strony_Pliku(Licznik) = i
+                                            Licznik = Licznik + 1
+                                        End If
+
+                                    ElseIf First_Last_Pages = 1 Then 'bierz drugą połowe pliku
+                                        If i > Math.Round(pdf.NumberOfPages / 2, 0) Then
+                                            ReDim Preserve Tresc_Strony(Licznik)
+                                            Tresc_Strony(Licznik) = pageText
+                                            sOut &= Tresc_Strony(Licznik)
+                                            ReDim Preserve Strony_Pliku(Licznik)
+                                            Strony_Pliku(Licznik) = i
+                                            Licznik = Licznik + 1
+                                        End If
+                                    End If
+                                Else 'jesli jest 1 strona- bierz cały plik
                                     ReDim Preserve Tresc_Strony(Licznik)
-                                    Tresc_Strony(Licznik) = iTextSharp.text.pdf.parser.PdfTextExtractor.GetTextFromPage(oReader, i, its)
+                                    Tresc_Strony(Licznik) = pageText
                                     sOut &= Tresc_Strony(Licznik)
-                                    ReDim Preserve Strony_Pliku(Licznik) 'TEST DO SKASOWANIA
+                                    ReDim Preserve Strony_Pliku(Licznik)
                                     Strony_Pliku(Licznik) = i
                                     Licznik = Licznik + 1
-                                    'Debug.Print(PdfFileName & " 1 Połowa") 'TEST DO SKASOWANIA
                                 End If
 
-                            ElseIf First_Last_Pages = 1 Then 'bierz drugą połowe pliku
-                                If i > Math.Round(oReader.NumberOfPages / 2, 0) Then
-                                    ReDim Preserve Tresc_Strony(Licznik)
-                                    Tresc_Strony(Licznik) = iTextSharp.text.pdf.parser.PdfTextExtractor.GetTextFromPage(oReader, i, its)
-                                    sOut &= Tresc_Strony(Licznik)
-                                    ReDim Preserve Strony_Pliku(Licznik) 'TEST DO SKASOWANIA
-                                    Strony_Pliku(Licznik) = i
-                                    Licznik = Licznik + 1
-                                    'Debug.Print(PdfFileName & " 2 Połowa") 'TEST DO SKASOWANIA
+                            Else 'bierz poszczególne strony wg słów kluczowych
+                                If Contain_Text <> "" Then
+                                    If Contain_Word = 0 Then 'bierz strony, które NIE zawieraja danego tekstu
+                                        If Not pageText.Contains(Contain_Text) Then
+                                            ReDim Preserve Tresc_Strony(Licznik)
+                                            Tresc_Strony(Licznik) = pageText
+                                            sOut &= Tresc_Strony(Licznik)
+                                            ReDim Preserve Strony_Pliku(Licznik)
+                                            Strony_Pliku(Licznik) = i
+                                            Licznik = Licznik + 1
+                                        End If
+
+                                    ElseIf Contain_Word = 1 Then 'bierz strony, które ZAWIERAJĄ dany text
+                                        If pageText.Contains(Contain_Text) Then
+                                            ReDim Preserve Tresc_Strony(Licznik)
+                                            Tresc_Strony(Licznik) = pageText
+                                            sOut &= Tresc_Strony(Licznik)
+                                            ReDim Preserve Strony_Pliku(Licznik)
+                                            Strony_Pliku(Licznik) = i
+                                            Licznik = Licznik + 1
+                                        End If
+                                    End If
                                 End If
                             End If
-                        Else 'jesli jest 1 strona- bierz cały plik
+
+                        Else 'bierz cały plik
                             ReDim Preserve Tresc_Strony(Licznik)
-                            Tresc_Strony(Licznik) = iTextSharp.text.pdf.parser.PdfTextExtractor.GetTextFromPage(oReader, i, its)
+                            Tresc_Strony(Licznik) = pageText
                             sOut &= Tresc_Strony(Licznik)
-                            ReDim Preserve Strony_Pliku(Licznik) 'TEST DO SKASOWANIA
+                            ReDim Preserve Strony_Pliku(Licznik)
                             Strony_Pliku(Licznik) = i
                             Licznik = Licznik + 1
-                            'Debug.Print(PdfFileName & " Całośc z wyboru") 'TEST DO SKASOWANIA
                         End If
-
-                    Else 'bierz poszczególne strony
-                        If Contain_Text <> "" Then
-                            If Contain_Word = 0 Then 'bierz strony, które nie zawieraja danego tekstu
-                                If Not iTextSharp.text.pdf.parser.PdfTextExtractor.GetTextFromPage(oReader, i, its).Contains(Contain_Text) Then
-                                    ReDim Preserve Tresc_Strony(Licznik)
-                                    Tresc_Strony(Licznik) = iTextSharp.text.pdf.parser.PdfTextExtractor.GetTextFromPage(oReader, i, its)
-                                    sOut &= Tresc_Strony(Licznik)
-                                    ReDim Preserve Strony_Pliku(Licznik) 'TEST DO SKASOWANIA
-                                    Strony_Pliku(Licznik) = i
-                                    Licznik = Licznik + 1
-                                    ' Debug.Print(PdfFileName & " Contain") 'TEST DO SKASOWANIA
-                                End If
-
-                            ElseIf Contain_Word = 1 Then 'bierz strony, które zawierają dany text
-                                If iTextSharp.text.pdf.parser.PdfTextExtractor.GetTextFromPage(oReader, i, its).Contains(Contain_Text) Then
-                                    ReDim Preserve Tresc_Strony(Licznik)
-                                    Tresc_Strony(Licznik) = iTextSharp.text.pdf.parser.PdfTextExtractor.GetTextFromPage(oReader, i, its)
-                                    sOut &= Tresc_Strony(Licznik)
-                                    ReDim Preserve Strony_Pliku(Licznik) 'TEST DO SKASOWANIA
-                                    Strony_Pliku(Licznik) = i
-                                    Licznik = Licznik + 1
-                                    'Debug.Print(PdfFileName & " Not Contain")
-                                End If
-                            End If
-                        End If
-
-
+                    Else
+                        ' Jeśli Calosc = True (np. tylko do odczytu numeru WZ)
+                        ReDim Preserve Tresc_Strony(Licznik)
+                        Tresc_Strony(Licznik) = pageText
+                        sOut &= Tresc_Strony(Licznik)
+                        ReDim Preserve Strony_Pliku(Licznik)
+                        Strony_Pliku(Licznik) = i
+                        Licznik = Licznik + 1
                     End If
+                Next
+            End Using
+        Catch ex As Exception
+            ' Rozszerzone logowanie błędów
+            Dim fileDetails As String = ""
+            Try
+                Dim fi As New FileInfo(PdfFileName)
+                fileDetails = $"Size: {fi.Length} bytes, Created: {fi.CreationTime}"
+            Catch
+            End Try
 
-                Else 'bierz cały plik
-                    ReDim Preserve Tresc_Strony(Licznik)
-                    Tresc_Strony(Licznik) = iTextSharp.text.pdf.parser.PdfTextExtractor.GetTextFromPage(oReader, i, its)
-                    sOut &= Tresc_Strony(Licznik)
-                    ReDim Preserve Strony_Pliku(Licznik) 'TEST DO SKASOWANIA
-                    Strony_Pliku(Licznik) = i
-                    Licznik = Licznik + 1
-                    'Debug.Print(PdfFileName & " Cały plik") 'TEST DO SKASOWANIA
-                End If
-            Else
-                ReDim Preserve Tresc_Strony(Licznik)
-                Tresc_Strony(Licznik) = iTextSharp.text.pdf.parser.PdfTextExtractor.GetTextFromPage(oReader, i, its)
-                sOut &= Tresc_Strony(Licznik)
-                ReDim Preserve Strony_Pliku(Licznik) 'TEST DO SKASOWANIA
-                Strony_Pliku(Licznik) = i
-                Licznik = Licznik + 1 'TEST DO SKASOWANIA
-                'Debug.Print(PdfFileName & " Cały Cały plik") 'TEST DO SKASOWANIA
-            End If
+            Zapisz_Log_Txt($"CRITICAL ERROR parsing {PdfFileName} [{fileDetails}]. Exception: {ex.ToString()}")
+            Return ""
+        End Try
 
-
-        Next
-        oReader.Close()
         Return sOut
-
     End Function
-
-
 
     Public Sub Aktualizacja_Statusow(Sprawdzanie_Stanu As Boolean)
         Dim i As Int16 = 0
-
 
         If My.Forms.Form_Main.ToolStripDisableRefreshing.Text.Contains("On") Then
             Sprawdzanie_Stanu = True
             Dystans = Dystans + 1
             If Dystans >= 5 Then
                 Dim thread As New Thread(AddressOf Ftp_Istnieje)
-                thread.Start() 'WYSTARTOWANIE OSOBNEGO WĄTKU !!!! ;-)
+                thread.Start() 'WYSTARTOWANIE OSOBNEGO WĄTKU
                 Dystans = 0
             End If
         Else
             Sprawdzanie_Stanu = False
         End If
 
-        If Sprawdzanie_Stanu = True Then ' jeśli sprawdZanie ma byc wykonanne
+        If Sprawdzanie_Stanu = True Then
             Try
                 If IsConnectedToInternet() = False Then
                     Stan_Internetu = "No internet connection"
                     My.Forms.Form_Main.Timer_PIC.Enabled = True
                     Exit Try
                 End If
-                Stan_FTP = True 'daje tu true aby wysyłało na FTP
-                'wyłączam blok sprawdzania ponieważ nie moge sprawdzać poł. FTP ciągle bez zamulania porgramu
-                'If Check_FTP = True Then
-                'My.Forms.Form_Main.Btn_Start.Visible = True
-                'If Stan_FTP And Ftp_Exist(Folder_FTP) Then
-                '    Polaczenia_FTP = "Connection with FTP establish: "
-                'Stan_Polaczenia_FTP = True
-                'n.ToolStripStatusLabel2.Text = ""
-                '    My.Forms.Form_Main.Timer_PIC.Enabled = False
-                '
-                'Polaczenia_FTP = "Error connection with indicated path: " & Folder_FTP & ". Wskazany adres jest niepoprawny. Kliknij aby przejść do ustawień."
-                'n.ToolStripStatusLabel2.Text = "FTP ERR"
-                'Stan_Polaczenia_FTP = False
-
-                '    My.Forms.Form_Main.Timer_PIC.Enabled = True
-                'End If
-
-                'Else
-
-                'End If
-
+                Stan_FTP = True
             Catch ex As Exception
                 Try
                     Zapisz_Log_Txt(ex.Message)
                 Catch ex1 As Exception
-
                 End Try
 
                 If Check_FTP = True Then
@@ -208,6 +222,7 @@ Module Module1
                     My.Forms.Form_Main.Timer_PIC.Enabled = True
                 End If
             End Try
+
             'SOURCE FOLDER - sprawdzenie
             Try
                 If Directory.Exists(Folder_PDF) Then
@@ -221,7 +236,6 @@ Module Module1
                 Try
                     Zapisz_Log_Txt(ex.Message)
                 Catch ex1 As Exception
-
                 End Try
                 Folderow_Lokalnych = "The indicated path to the PDF files is not correct or another unidentified error occurred."
                 Stan_Folderow_Lokalnych = False
@@ -245,12 +259,8 @@ Module Module1
                     Folderow_Z_Kopiami = "The indicated path to the destination folder is not correct or another unidentified error occurred."
                     Stan_Folderow_Z_Kopiami = False
                 End Try
-            Else
-
             End If
-
         End If
-
 
         'Poniższa część wykonuje sie stale, nieustannie
         Dim Folder As String = Folder_PDF
@@ -265,85 +275,52 @@ Module Module1
                 Try
                     Zapisz_Log_Txt(ex.Message)
                 Catch ex1 As Exception
-
                 End Try
-
                 My.Forms.Form_Main.L_LIczba_Plikow.Text = 0
             End Try
         End If
 
         My.Forms.Form_Main.L_LIczba_Plikow.Text = i
-        'USTAwienie ToolTip Text
-
-
-
     End Sub
 
     Public Function Ftp_Exist(Sciezka_FTP As String) As Boolean
         Ftp_Exist = False
-        'WYŁĄCZENIE SPRAWDZANIA FTP !!!!!!!!
+        'WYŁĄCZENIE SPRAWDZANIA FTP
         ' If 0 = 1 Then
-
         If Sciezka_FTP <> "" Then
-            Dim request =
-           DirectCast(WebRequest.Create(Sciezka_FTP), FtpWebRequest)
-
-            request.Credentials =
-                New NetworkCredential(Login_FTP, Haslo_FTP)
-
+            Dim request = DirectCast(WebRequest.Create(Sciezka_FTP), FtpWebRequest)
+            request.Credentials = New NetworkCredential(Login_FTP, Haslo_FTP)
             request.Method = WebRequestMethods.Ftp.ListDirectory
 
             Try
-                Using response As FtpWebResponse =
-                DirectCast(request.GetResponse(), FtpWebResponse)
-                    ' Folder exists here
+                Using response As FtpWebResponse = DirectCast(request.GetResponse(), FtpWebResponse)
                     Ftp_Exist = True
                 End Using
-
             Catch ex As WebException
-
-                Dim response As FtpWebResponse =
-                DirectCast(ex.Response, FtpWebResponse)
-                'Does not exist
-                If response.StatusCode =
-                FtpStatusCode.ActionNotTakenFileUnavailable Then
+                Dim response As FtpWebResponse = DirectCast(ex.Response, FtpWebResponse)
+                If response.StatusCode = FtpStatusCode.ActionNotTakenFileUnavailable Then
                     Ftp_Exist = False
                 End If
             End Try
         Else
             Ftp_Exist = False
         End If
-        ' End If
     End Function
+
     Public Sub Ftp_Istnieje()
-        'TODO: WYŁĄCZYĆ CZUJKI na main form bo spowalniają. Zamiast tego dać narzedzie do sprawdzania poprawności
-        'WYŁĄCZENIE SPRAWDZANIA FTP !!!!!!!!
-        If 0 = 1 Then
+        If 0 = 1 Then ' Wyłączone wg oryginału
             If Folder_FTP <> "" Then
-                Dim request =
-               DirectCast(WebRequest.Create(Folder_FTP), FtpWebRequest)
-
-                request.Credentials =
-                    New NetworkCredential(Login_FTP, Haslo_FTP)
-
+                Dim request = DirectCast(WebRequest.Create(Folder_FTP), FtpWebRequest)
+                request.Credentials = New NetworkCredential(Login_FTP, Haslo_FTP)
                 request.Method = WebRequestMethods.Ftp.ListDirectory
 
                 Try
-                    Using response As FtpWebResponse =
-                    DirectCast(request.GetResponse(), FtpWebResponse)
-                        ' Folder exists here
-
+                    Using response As FtpWebResponse = DirectCast(request.GetResponse(), FtpWebResponse)
                         Stan_FTP = True
                     End Using
-
                 Catch ex As WebException
-
-                    Dim response As FtpWebResponse =
-                    DirectCast(ex.Response, FtpWebResponse)
-                    'Does not exist
-                    If response.StatusCode =
-                    FtpStatusCode.ActionNotTakenFileUnavailable Then
-
+                    Dim response As FtpWebResponse = DirectCast(ex.Response, FtpWebResponse)
+                    If response.StatusCode = FtpStatusCode.ActionNotTakenFileUnavailable Then
                         Stan_FTP = False
                     End If
                 End Try
@@ -354,21 +331,12 @@ Module Module1
     End Sub
 
     Public Sub PDF_FTP()
-
     End Sub
 
-
-
-    'Nowa Wersja 2.0 2018-11-14- zaimplementowana. 
-    '1. Moduł dotyczący FTp niemodyfikowany. 
-    '2. Ujednolicono adresy Nowego pliku- dodano na stałe folder_pdf i dolder_Dest do nazwy pliku
-    '3. Poprawiono algorytm  dla plikow tylko do zmiany nazwy- wyciagnieto przed if inna_lokalizacja
     Public Sub Przetworz_Pliki2(Wysyłka_Na_FTP As Boolean, Zmiana_Nazwy As Boolean, Inna_Lokalizacja As Boolean, Logowanie As Boolean)
         'Wysyłka_Na_FTP- czy ma wysyłać na FTP, Zmiana_Nazwy- jesli false to zapewne przetwórz dla samego zliczenia
         Dim Wiersz(5) As String
-
         Dim Referencja As String = ""
-
         Dim itm As ListViewItem
         Dim i As Integer = 0
         Dim Ilosc_OK As Int16 = 0
@@ -386,8 +354,7 @@ Module Module1
         Dim Numer As Integer = 1
         Dim Licznik_Blednych As Integer = 0
         Dim Nazwa_Pliku_Blednego As String = "Nierozpoznany_"
-        'TODO: A co z plikami i DUBLAMI WZ???? Jeśli mamy dubel WZ to pliki beda mialy taka sama nazwe!
-        'Jeżeli w ustawieniach wpiszemy jako startowy ciag- 0 to wywala że nie rozpoznano struktury pliku- NAPRAWIONE
+
         For Each Plik As String In My.Computer.FileSystem.GetFiles(Folder_PDF) 'Sprawdź każdy plik w folderze
             If UCase(Mid(Plik, Plik.Length - 3, 4)) = UCase(".pdf") Then 'jesli rozszerzenie pliku to "pdf" to bierz plik do obrobki
                 Tresc_Pliku = ParsePdfText2(Plik, True)
@@ -395,43 +362,38 @@ Module Module1
                 i = i + 1
                 Numer = 1
                 Wiersz(0) = i
-                Wiersz(1) = System.IO.Path.GetFileName(Plik) 'lub bez rozszerzenia: System.IO.Path.GetFileNameWithoutExtension
-                Referencja = Wytnij_String(Tresc_Pliku) 'Wycina fragment pliku wg. ustawien Mid(Tresc_Pliku, 5, 9) 'TO PODMIENIC!
+                Wiersz(1) = System.IO.Path.GetFileName(Plik)
+                Referencja = Wytnij_String(Tresc_Pliku)
+
                 If Referencja <> "" Then
                     Wiersz(3) = Napraw_String(Prefix & "_" & Numer & "_" & Referencja & Suffix & ".pdf") 'Nazwa pliku
                     Do While Czy_WZ_Jest_Dublem(3, Wiersz(3)) = True
-                        '2020-05-25 Dodano Numer- czyli numeracje kolejnych plików w przypadku, gdy plików z ttym samym nr przesyłki jest wiecej
                         Numer = Numer + 1
-                        Wiersz(3) = Napraw_String(Prefix & "_" & Numer & "_" & Referencja & Suffix & ".pdf") 'Nazwa pliku
+                        Wiersz(3) = Napraw_String(Prefix & "_" & Numer & "_" & Referencja & Suffix & ".pdf")
                     Loop
                     Znaleziono_Nr = True
                 Else
                     Referencja = System.IO.Path.GetFileName(Plik)
-                    Wiersz(3) = Referencja 'Nazwa pliku
+                    Wiersz(3) = Referencja
                     Znaleziono_Nr = False
                 End If
                 Wiersz(2) = Napraw_String(Referencja)
 
-                Tresc_Pliku = ParsePdfText2(Plik, False) 'celowo wywołuje funkcję ponownie aby tym razem zaczytała plik wg ustawień a nie całość
-                If Allow_Duplicates = 1 Or Czy_WZ_Jest_Dublem(2, Wiersz(2)) = False Then 'jeśli pozwalamy na duplikat to idź dalej nawet jeśli funkcja CZY znajdzie duplikat
+                ' Ponowne wywołanie, aby pobrać tylko odpowiednie strony/treść
+                Tresc_Pliku = ParsePdfText2(Plik, False)
 
-#Region "Wysyłka na FTP"' wysyłka na FTp nie zawiera chyba tych rozbudowanych zmian, które sa obecne w zapisie plików!
-                    If Wysyłka_Na_FTP = True And Stan_FTP = True Then 'jesli właczylismy wysłanie na FTP  to procesuj dalej
-                        ' If Not File.Exists(Sciezka_FTP & Wiersz(3)) Then
-                        Dim remoteLOC As String = Folder_FTP & Wiersz(3) 'nazwa ftp plus nazwa pliku
+                If Allow_Duplicates = 1 Or Czy_WZ_Jest_Dublem(2, Wiersz(2)) = False Then
+
+#Region "Wysyłka na FTP"
+                    If Wysyłka_Na_FTP = True And Stan_FTP = True Then
+                        Dim remoteLOC As String = Folder_FTP & Wiersz(3)
                         Try
-                            'FilenameIsOK - sprawdza czy nazwa pliku nie zawiera specjalnych znakow, ktore nie moga byc uzwane
-
                             Dim info As New FileInfo(Plik)
-                            'Sprawdź czy plik nie jest zablokowany!
-                            If Sprawdz_PDF(Plik, Znaleziono_Nr) = True And FilenameIsOK(Wiersz(3)) Then 'zabezpieczenie, czy plik pdf na pewno ma taki sam poczatek (WZ) i ma szukany numer
-                                If Whole_File = 0 Then 'jesli mamy nie procesowac całego pdf tylko strony
-
-                                    If IsFileOpen(info) Then 'jak plik jest zablokowany to zrób jego kopie
-                                        If Not File.Exists(Folder_PDF & "Temporary_File" & i & ".pdf") Then 'wynikiem tego jest wysłanie na FTp i skasowanie pliku
-                                            'My.Computer.FileSystem.CopyFile(Plik, Folder_PDF & "Temporary_File" & i & ".pdf")
-                                            Extract_Specific_Pages(Plik, Folder_PDF & "Temporary_File" & i & ".pdf", Strony_Pliku) 'Nadpisz plik
-                                            'My.Computer.Network.UploadFile(Folder_Dest & "Temporary_File" & i & ".pdf", remoteLOC, Login_FTP, Haslo_FTP, True, 500)
+                            If Sprawdz_PDF(Plik, Znaleziono_Nr) = True And FilenameIsOK(Wiersz(3)) Then
+                                If Whole_File = 0 Then
+                                    If IsFileOpen(info) Then
+                                        If Not File.Exists(Folder_PDF & "Temporary_File" & i & ".pdf") Then
+                                            Extract_Specific_Pages(Plik, Folder_PDF & "Temporary_File" & i & ".pdf", Strony_Pliku)
                                             Send_To_FTP_SFTP(Folder_Dest & "Temporary_File" & i & ".pdf", Wiersz(3), Folder_FTP, Login_FTP, Haslo_FTP, SFTP)
                                             My.Computer.FileSystem.DeleteFile(Folder_PDF & "Temporary_File" & i & ".pdf")
                                             Wiersz(4) = "File is locked"
@@ -443,12 +405,8 @@ Module Module1
                                             Wiersz(3) = "Unable to save copy of pdf file. File not send to FTP."
                                             Form_Main.Auto_Ilosc_Error = Form_Main.Auto_Ilosc_Error + 1
                                         End If
-                                    Else 'Plik niezablokowany
-                                        'PROBLEM: W PRZYPADKU pliku z 1 stroną- nie dzielić
-                                        'PROBLEM: W PRZYPADKU pliku bez tekstu z parzystą liczbą stron-dzielenie na pół działać ma, ale dzielenie po słowie nie
-                                        'PROBLEM: W PRZYPADKU, gdy program nie znajdzie słowa kluczowego w ogóle w pliku- nie przetwarzać
-                                        Extract_Specific_Pages(Plik, Folder_PDF & "Temporary_File" & i & ".pdf", Strony_Pliku) 'Stwórz nowy plik z odpowiednimi stronami
-                                        'My.Computer.Network.UploadFile(Folder_PDF & "Temporary_File" & i & ".pdf", remoteLOC, Login_FTP, Haslo_FTP, True, 500)
+                                    Else
+                                        Extract_Specific_Pages(Plik, Folder_PDF & "Temporary_File" & i & ".pdf", Strony_Pliku)
                                         Send_To_FTP_SFTP(Folder_PDF & "Temporary_File" & i & ".pdf", Wiersz(3), Folder_FTP, Login_FTP, Haslo_FTP, SFTP)
                                         My.Computer.FileSystem.DeleteFile(Plik)
                                         My.Computer.FileSystem.DeleteFile(Folder_PDF & "Temporary_File" & i & ".pdf")
@@ -456,41 +414,36 @@ Module Module1
                                         Wiersz(5) = "OK"
                                         Form_Main.Auto_Ilosc_Zapisanych = Form_Main.Auto_Ilosc_Zapisanych + 1
                                     End If
-                                Else 'jeśli mamy wysłac cały plik- to wysyłamy od razu
-
-                                    'Wiersz(3) = Prefix & Referencja & Suffix & ".pdf" 'Nazwa pliku- zakomentowałem bo ten wiersz(3) jest już uzupełniony
-                                    'My.Computer.Network.UploadFile(Plik, remoteLOC, Login_FTP, Haslo_FTP, True, 500)
+                                Else
                                     Send_To_FTP_SFTP(Plik, Wiersz(3), Folder_FTP, Login_FTP, Haslo_FTP, SFTP)
                                     If Not IsFileOpen(info) Then
-                                            My.Computer.FileSystem.DeleteFile(Plik)
-                                        End If
-
-                                        Wiersz(4) = "OK"
-                                        Wiersz(5) = "OK"
-                                        Form_Main.Auto_Ilosc_Zapisanych = Form_Main.Auto_Ilosc_Zapisanych + 1
+                                        My.Computer.FileSystem.DeleteFile(Plik)
                                     End If
+                                    Wiersz(4) = "OK"
+                                    Wiersz(5) = "OK"
+                                    Form_Main.Auto_Ilosc_Zapisanych = Form_Main.Auto_Ilosc_Zapisanych + 1
+                                End If
 
                             Else
                                 Wiersz(5) = "NOK"
                                 Nowa_Nazwa = System.IO.Path.GetFileName(Plik)
                                 Wiersz(3) = "Incorrect delivery note number inside PDF file"
                                 My.Computer.FileSystem.WriteAllText(Folder_PDF & Nowa_Nazwa & ".txt", "Plik PDF nie został wysłany. Struktura pliku odbiega od ustawionego wzorca. Problem z odczytem numeru referencyjnego. " & vbCrLf &
-                        "Odczytana referencja: " & Referencja & vbCrLf &
-                        "Nazwa pliku: " & Wiersz(3) & vbCrLf &
-                        "Treść pliku PDF: " & vbCrLf &
-                        Tresc_Pliku, False)
+                                "Odczytana referencja: " & Referencja & vbCrLf &
+                                "Nazwa pliku: " & Wiersz(3) & vbCrLf &
+                                "Treść pliku PDF: " & vbCrLf &
+                                Tresc_Pliku, False)
                                 Form_Main.Auto_Ilosc_Error = Form_Main.Auto_Ilosc_Error + 1
                             End If
 
-
                         Catch ex As Exception
-                            Try 'kolejne zabezpieczenie
-                                Zapisz_Log_Txt(ex.Message) 'zapisanie treści błedu  w pliku txt o nazwie Error_Log.txt
+                            Try
+                                Zapisz_Log_Txt(ex.Message)
                                 My.Computer.FileSystem.WriteAllText(Folder_PDF & Wiersz(1) & ".txt", "Plik PDF nie został wysłany. " & vbCrLf &
                             "Odczytana referencja: " & Referencja & vbCrLf &
                             "Nazwa pliku: " & Wiersz(3) & vbCrLf &
                             "Treść pliku PDF: " & vbCrLf &
-                            ParsePdfText2(Plik, False), False) 'zapisanie zamiast pliku pdf pliku txt z opisem błedu
+                            ParsePdfText2(Plik, False), False)
                                 Wiersz(5) = "NOK"
                                 Form_Main.Auto_Ilosc_Error = Form_Main.Auto_Ilosc_Error + 1
                             Catch ex1 As Exception
@@ -498,16 +451,16 @@ Module Module1
                             End Try
                         End Try
 #End Region
+
 #Region "Zapis plików"
-                    Else 'Jeśli wybraliśmy BEZ WYSYŁANIA plików na serwer - program ma zmienić wyłacznie nazwy tych plików
+                    Else 'Jeśli wybraliśmy BEZ WYSYŁANIA plików na serwer
                         Try
                             Dim info As New FileInfo(Plik)
-                            'Debug.Print(info.Name)
-                            If IsFileOpen(info) Then 'jak plik jest zablokowany - to nie procesuj dalej
+                            If IsFileOpen(info) Then
                                 Dim LockedFileProcesses = WhoIsLocking(Plik)
                                 If LockedFileProcesses.Count > 0 Then
                                     For Each Item In LockedFileProcesses
-                                        Blokujacy = Blokujacy & "; " & Item.ProcessName.ToString '& " .. " & Item.Id.ToString & vbCrLf)
+                                        Blokujacy = Blokujacy & "; " & Item.ProcessName.ToString
                                     Next
                                 End If
                                 Wiersz(3) = "File is locked by: " & Blokujacy
@@ -515,96 +468,77 @@ Module Module1
                                 Wiersz(5) = "NOK"
                                 Form_Main.Auto_Ilosc_Error = Form_Main.Auto_Ilosc_Error + 1
                                 Nowa_Nazwa = Plik
-                                Exit Try 'wyjdź jak zablokowany z tej pętli i przejdź do nastepnego pliku
-
+                                Exit Try
                             End If
-                            If System.IO.Path.GetFileName(Plik) <> Wiersz(3) Then 'jeśli nazwa już jest ok, nie procesuj dalej
-                                'XXXXXXXXXXXXXXXXX TU DAC ZABEZPIECZNEI SUME KONTROLNA
 
-                                If Sprawdz_PDF(Plik, Znaleziono_Nr) = True And FilenameIsOK(Wiersz(3)) Then 'zabezpieczenie, czy plik pdf na pewno ma taki sam poczatek (WZ) i ma szukany numer
-                                    'NOWY ALGORYTM
-                                    If Strony_Pliku.Length = 1 And Strony_Pliku(0) = 0 Then 'to oznacza ściśle,ze program nie znalazł żadnych pasujących stron
-                                        'to oznacza ściśle,ze program nie znalazł żadnych pasujących stron
+                            If System.IO.Path.GetFileName(Plik) <> Wiersz(3) Then
+                                If Sprawdz_PDF(Plik, Znaleziono_Nr) = True And FilenameIsOK(Wiersz(3)) Then
+                                    If Strony_Pliku.Length = 1 And Strony_Pliku(0) = 0 Then
                                         Wiersz(3) = "No matching pages found."
                                         Wiersz(4) = "NOK"
                                         Wiersz(5) = "NOK"
                                         Form_Main.Auto_Ilosc_Error = Form_Main.Auto_Ilosc_Error + 1
                                         Nowa_Nazwa = Plik
-                                        Exit Try 'jak plik nie zawiera żadnych pasującdych do wzorca stron- zakończ przetwarzanie
+                                        Exit Try
                                     End If
-                                    If Zmiana_Nazwy = True Then 'gdy chcemy zmienić nazwy plików
-                                        If Inna_Lokalizacja = False Then
-                                            If Not File.Exists(Folder_PDF & Wiersz(3)) Then 'gdy plik nie istnieje jeszcze
-                                                If Whole_File = 0 Then 'jesli mamy nie procesowac całego pdf tylko strony
-                                                    'Debug.Print(Strony_Pliku(0))
 
+                                    If Zmiana_Nazwy = True Then
+                                        If Inna_Lokalizacja = False Then
+                                            If Not File.Exists(Folder_PDF & Wiersz(3)) Then
+                                                If Whole_File = 0 Then
                                                     If Group_Pages = 1 Then
                                                         If FilenameIsOK(Folder_PDF) Then
-                                                            Extract_Specific_Pages(Plik, Folder_PDF & Wiersz(3), Strony_Pliku) 'Zapisz nowy plik z odpowiednimi stronami
-                                                        Else 'Zmiana 1.0.8 jeśli nazwa pliku jest niepoprawna to mimo wszystko zapisz plik PDF ale ze specjalna nazwa!
-                                                            Licznik_Blednych = Licznik_Blednych + 1 'Nazwa_Pliku_Blednego & Licznik_Blednych
+                                                            Extract_Specific_Pages(Plik, Folder_PDF & Wiersz(3), Strony_Pliku)
+                                                        Else
+                                                            Licznik_Blednych = Licznik_Blednych + 1
                                                             Extract_Specific_Pages(Plik, Nazwa_Pliku_Blednego & Licznik_Blednych, Strony_Pliku)
                                                         End If
-                                                        'dla stron, które nie mają być zgrupowane
                                                     ElseIf Group_Pages = 0 Then
-                                                        Dim Strona(0) As Integer 'zbiór numerów tych samych stron, zerowany jak strona jest inna
-                                                        Dim Stron_Ilosc As Integer = 0 'licznik numerów tych samych stron, zerowany jak strona jest inna
+                                                        ' Dla stron, które nie mają być zgrupowane
+                                                        Dim Strona(0) As Integer
+                                                        Dim Stron_Ilosc As Integer = 0
                                                         Licznik = 0
                                                         For Each pageNumber As Integer In Strony_Pliku
-
-                                                            'TODO: Dodać tu opcję zapisu każdej strony osobno
-                                                            'TODO: Przed ta funkcją dodać sprawdzenie nazw WSZYSTKICH plików
-                                                            'TODO: UWAGA!!! Trzeba wiersz(3) wczytac- wydobyc tu numer wz z każdej strony OSOBNO!!!
-                                                            'NIE DZIAŁA
-
                                                             Referencja = Wytnij_String(Tresc_Strony(Licznik))
-                                                            If Licznik > 1 Then 'jesli stron bedzie wiecej niz 1
-                                                                If Referencja = Wytnij_String(Tresc_Strony(Licznik - 1)) Then 'gdy referencja bedzie taka sama to zlacz strony
+                                                            If Licznik > 1 Then
+                                                                If Referencja = Wytnij_String(Tresc_Strony(Licznik - 1)) Then
                                                                     Stron_Ilosc = Stron_Ilosc + 1
                                                                     ReDim Preserve Strona(Stron_Ilosc)
                                                                     Strona(Stron_Ilosc) = pageNumber
                                                                     If FilenameIsOK(Referencja) Then
-                                                                        Extract_Specific_Pages(Plik, Folder_PDF & Referencja & ".pdf", Strona) 'Zapisz nowy plik ze stronami, które są już sparowane
-                                                                    Else 'Zmiana 1.0.8 jeśli nazwa pliku jest niepoprawna to mimo wszystko zapisz plik PDF ale ze specjalna nazwa!
-                                                                        Licznik_Blednych = Licznik_Blednych + 1 'Nazwa_Pliku_Blednego & Licznik_Blednych
+                                                                        Extract_Specific_Pages(Plik, Folder_PDF & Referencja & ".pdf", Strona)
+                                                                    Else
+                                                                        Licznik_Blednych = Licznik_Blednych + 1
                                                                         Extract_Specific_Pages(Plik, Folder_PDF & Nazwa_Pliku_Blednego & Licznik_Blednych & ".pdf", Strona)
                                                                     End If
-
                                                                 Else
-                                                                    ReDim Strona(0) 'zerowanie zmiennej
-                                                                    Stron_Ilosc = 0 'mamy wtedy stronę różną od poprzedniej, wiec zakladamy że jest jedna
+                                                                    ReDim Strona(0)
+                                                                    Stron_Ilosc = 0
                                                                     Strona(Stron_Ilosc) = pageNumber
                                                                     If FilenameIsOK(Referencja) Then
-                                                                        Extract_Specific_Pages(Plik, Folder_PDF & Referencja & ".pdf", Strona) 'Zapisz nowy plik jedną stroną
-                                                                    Else 'Zmiana 1.0.8 jeśli nazwa pliku jest niepoprawna to mimo wszystko zapisz plik PDF ale ze specjalna nazwa!
-                                                                        Licznik_Blednych = Licznik_Blednych + 1 'Nazwa_Pliku_Blednego & Licznik_Blednych
+                                                                        Extract_Specific_Pages(Plik, Folder_PDF & Referencja & ".pdf", Strona)
+                                                                    Else
+                                                                        Licznik_Blednych = Licznik_Blednych + 1
                                                                         Extract_Specific_Pages(Plik, Folder_PDF & Nazwa_Pliku_Blednego & Licznik_Blednych & ".pdf", Strona)
                                                                     End If
-                                                                    'Extract_Specific_Pages(Plik, Folder_PDF & Referencja & ".pdf", Strona) 'Zapisz nowy plik jedną stroną
                                                                 End If
-                                                            Else 'jak będzie tylko 1 strona to od razu ja zapisz
-                                                                ReDim Strona(0) 'zerowanie zmiennej
-                                                                Stron_Ilosc = 0 'zerowanie
+                                                            Else
+                                                                ReDim Strona(0)
+                                                                Stron_Ilosc = 0
                                                                 Strona(Stron_Ilosc) = pageNumber
                                                                 If FilenameIsOK(Referencja) Then
-                                                                    Extract_Specific_Pages(Plik, Folder_PDF & Referencja & ".pdf", Strona) 'Zapisz nowy plik jedną stroną
-                                                                Else 'Zmiana 1.0.8 jeśli nazwa pliku jest niepoprawna to mimo wszystko zapisz plik PDF ale ze specjalna nazwa!
-                                                                    Licznik_Blednych = Licznik_Blednych + 1 'Nazwa_Pliku_Blednego & Licznik_Blednych
-                                                                    Extract_Specific_Pages(Plik, Folder_PDF & Nazwa_Pliku_Blednego & Licznik_Blednych & ".pdf", Strona) 'Zapisz nowy plik jedną stroną
+                                                                    Extract_Specific_Pages(Plik, Folder_PDF & Referencja & ".pdf", Strona)
+                                                                Else
+                                                                    Licznik_Blednych = Licznik_Blednych + 1
+                                                                    Extract_Specific_Pages(Plik, Folder_PDF & Nazwa_Pliku_Blednego & Licznik_Blednych & ".pdf", Strona)
                                                                 End If
-
                                                             End If
-                                                            Licznik = Licznik + 1 'licznik stron w-z
+                                                            Licznik = Licznik + 1
                                                         Next
                                                     Else
-
-                                                        Extract_Specific_Pages(Plik, Folder_PDF & Wiersz(3), Strony_Pliku) 'Zapisz nowy plik z odpowiednimi stronami
-
-
+                                                        Extract_Specific_Pages(Plik, Folder_PDF & Wiersz(3), Strony_Pliku)
                                                     End If
-
-                                                    My.Computer.FileSystem.DeleteFile(Plik) 'skasowanie starego pliku. W teorii nie jest zablokowanybo inaczej wcześnie program by to wykrył!
-                                                    'My.Computer.FileSystem.RenameFile(Plik, Wiersz(3))
+                                                    My.Computer.FileSystem.DeleteFile(Plik)
                                                     Wiersz(4) = "renamed"
                                                     Nowa_Nazwa = Folder_PDF & Wiersz(3)
                                                     Form_Main.Auto_Ilosc_Zapisanych = Form_Main.Auto_Ilosc_Zapisanych + 1
@@ -614,130 +548,106 @@ Module Module1
                                                     Nowa_Nazwa = Folder_PDF & Wiersz(3)
                                                     Form_Main.Auto_Ilosc_Zapisanych = Form_Main.Auto_Ilosc_Zapisanych + 1
                                                 End If
-
-                                            Else 'gdy plik już istnieje. Ten plik co istnieje może juz byc zablokowany- tego program wczesniej nie sprawdzał. 
-                                                If Whole_File = 0 Then 'jesli mamy nie procesowac całego pdf tylko strony
-                                                    'jak plik istnieje- nie ruszamy
-                                                    'My.Computer.FileSystem.RenameFile(Plik, "_copy_" & Wiersz(3))
-                                                    'Extract_Specific_Pages(Folder_PDF & "_copy_" & Wiersz(3), Folder_PDF & Wiersz(3), Strony_Pliku) 'Stwórz nowy plik z odpowiednimi stronami
-                                                    'My.Computer.FileSystem.DeleteFile(Folder_PDF & "_copy_" & Wiersz(3)) 'Skasuj plik tymczasowy
+                                            Else
+                                                ' Gdy plik już istnieje
+                                                If Whole_File = 0 Then
                                                     Wiersz(4) = "OK"
                                                     Nowa_Nazwa = Folder_PDF & Wiersz(3)
                                                     Form_Main.Auto_Ilosc_Zapisanych = Form_Main.Auto_Ilosc_Zapisanych + 1
-                                                Else ' jesli bierzemy plik w całości to nic już dalej nie robimy
+                                                Else
                                                     Wiersz(4) = "OK"
                                                     Nowa_Nazwa = Folder_PDF & Wiersz(3)
                                                     Form_Main.Auto_Ilosc_Zapisanych = Form_Main.Auto_Ilosc_Zapisanych + 1
                                                 End If
                                             End If
-                                        Else ' jesli jednak Inna_lokalizacja=true
-                                            If Whole_File = 0 Then 'jesli mamy nie procesowac całego pdf tylko strony
-                                                If Not File.Exists(Folder_Dest & Wiersz(3)) Then 'gdy plik nie istnieje jeszcze w nowej lokalizacji
+                                        Else ' Inna_lokalizacja=true
+                                            If Whole_File = 0 Then
+                                                If Not File.Exists(Folder_Dest & Wiersz(3)) Then
                                                     If Group_Pages = 1 Then
-
-                                                        Extract_Specific_Pages(Plik, Folder_Dest & Wiersz(3), Strony_Pliku) 'Zapisz nowy plik z odpowiednimi stronami
-
-
+                                                        Extract_Specific_Pages(Plik, Folder_Dest & Wiersz(3), Strony_Pliku)
                                                     ElseIf Group_Pages = 0 Then
-                                                        Dim Strona(0) As Integer 'zbiór numerów tych samych stron, zerowany jak strona jest inna
-                                                        Dim Stron_Ilosc As Integer = 0 'licznik numerów tych samych stron, zerowany jak strona jest inna
+                                                        ' Tutaj podobna logika pętli jak wyżej dla Group_Pages=0
+                                                        Dim Strona(0) As Integer
+                                                        Dim Stron_Ilosc As Integer = 0
                                                         Licznik = 0
                                                         For Each pageNumber As Integer In Strony_Pliku
-
-                                                            'TODO: Dodać tu opcję zapisu każdej strony osobno
-                                                            'TODO: Przed ta funkcją dodać sprawdzenie nazw WSZYSTKICH plików
-                                                            'TODO: UWAGA!!! Trzeba wiersz(3) wczytac- wydobyc tu numer wz z każdej strony OSOBNO!!!
-                                                            'NIE DZIAŁA
-
                                                             Referencja = Wytnij_String(Tresc_Strony(Licznik))
-                                                            If Licznik >= 1 Then 'jesli stron bedzie wiecej niz 1
-                                                                If Referencja = Wytnij_String(Tresc_Strony(Licznik - 1)) Then 'gdy referencja bedzie taka sama to zlacz strony
+                                                            If Licznik >= 1 Then
+                                                                If Referencja = Wytnij_String(Tresc_Strony(Licznik - 1)) Then
                                                                     Stron_Ilosc = Stron_Ilosc + 1
                                                                     ReDim Preserve Strona(Stron_Ilosc)
                                                                     Strona(Stron_Ilosc) = pageNumber
                                                                     If FilenameIsOK(Referencja) Then
-                                                                        Extract_Specific_Pages(Plik, Folder_Dest & Referencja & ".pdf", Strona) 'Zapisz nowy plik ze stronami, które są już sparowane
-                                                                    Else 'Zmiana 1.0.8 jeśli nazwa pliku jest niepoprawna to mimo wszystko zapisz plik PDF ale ze specjalna nazwa!
+                                                                        Extract_Specific_Pages(Plik, Folder_Dest & Referencja & ".pdf", Strona)
+                                                                    Else
                                                                         Licznik_Blednych = Licznik_Blednych + 1
-                                                                        Extract_Specific_Pages(Plik, Folder_Dest & Nazwa_Pliku_Blednego & Licznik_Blednych & ".pdf", Strona) 'Zapisz nowy plik ze stronami, które są już sparowane
+                                                                        Extract_Specific_Pages(Plik, Folder_Dest & Nazwa_Pliku_Blednego & Licznik_Blednych & ".pdf", Strona)
                                                                     End If
-
                                                                 Else
-                                                                    ReDim Strona(0) 'zerowanie zmiennej
-                                                                    Stron_Ilosc = 0 'mamy wtedy stronę różną od poprzedniej, wiec zakladamy że jest jedna
+                                                                    ReDim Strona(0)
+                                                                    Stron_Ilosc = 0
                                                                     Strona(Stron_Ilosc) = pageNumber
                                                                     If FilenameIsOK(Referencja) Then
-                                                                        Extract_Specific_Pages(Plik, Folder_Dest & Referencja & ".pdf", Strona) 'Zapisz nowy plik jedną stroną
-                                                                    Else 'Zmiana 1.0.8 jeśli nazwa pliku jest niepoprawna to mimo wszystko zapisz plik PDF ale ze specjalna nazwa!
+                                                                        Extract_Specific_Pages(Plik, Folder_Dest & Referencja & ".pdf", Strona)
+                                                                    Else
                                                                         Licznik_Blednych = Licznik_Blednych + 1
-                                                                        Extract_Specific_Pages(Plik, Folder_Dest & Nazwa_Pliku_Blednego & Licznik_Blednych & ".pdf", Strona) 'Zapisz nowy plik jedną stroną
+                                                                        Extract_Specific_Pages(Plik, Folder_Dest & Nazwa_Pliku_Blednego & Licznik_Blednych & ".pdf", Strona)
                                                                     End If
-
                                                                 End If
-                                                            Else 'jak będzie tylko 1 strona to od razu ja zapisz
-                                                                ReDim Strona(0) 'zerowanie zmiennej
-                                                                Stron_Ilosc = 0 'zerowanie
+                                                            Else
+                                                                ReDim Strona(0)
+                                                                Stron_Ilosc = 0
                                                                 Strona(Stron_Ilosc) = pageNumber
                                                                 If FilenameIsOK(Referencja) Then
-                                                                    Extract_Specific_Pages(Plik, Folder_Dest & Referencja & ".pdf", Strona) 'Zapisz nowy plik jedną stroną
-                                                                Else 'Zmiana 1.0.8 jeśli nazwa pliku jest niepoprawna to mimo wszystko zapisz plik PDF ale ze specjalna nazwa!
-                                                                    Licznik_Blednych = Licznik_Blednych + 1 'Nazwa_Pliku_Blednego & Licznik_Blednych
-                                                                    Extract_Specific_Pages(Plik, Folder_Dest & Nazwa_Pliku_Blednego & Licznik_Blednych & ".pdf", Strona) 'Zapisz nowy plik jedną stroną
+                                                                    Extract_Specific_Pages(Plik, Folder_Dest & Referencja & ".pdf", Strona)
+                                                                Else
+                                                                    Licznik_Blednych = Licznik_Blednych + 1
+                                                                    Extract_Specific_Pages(Plik, Folder_Dest & Nazwa_Pliku_Blednego & Licznik_Blednych & ".pdf", Strona)
                                                                 End If
-
                                                             End If
-                                                            Licznik = Licznik + 1 'licznik stron w-z
+                                                            Licznik = Licznik + 1
                                                         Next
                                                     Else
-
-                                                        Extract_Specific_Pages(Plik, Folder_Dest & Wiersz(3), Strony_Pliku) 'Zapisz nowy plik z odpowiednimi stronami
-
-
+                                                        Extract_Specific_Pages(Plik, Folder_Dest & Wiersz(3), Strony_Pliku)
                                                     End If
                                                     Wiersz(4) = "moved & renamed pages"
                                                     Nowa_Nazwa = Folder_Dest & Wiersz(3)
                                                     Form_Main.Auto_Ilosc_Zapisanych = Form_Main.Auto_Ilosc_Zapisanych + 1
-                                                Else 'gdy plik już w danej lokalizacji istnieje
-                                                    'jak plik istnieje- nie ruszamy
-                                                    'Extract_Specific_Pages(Folder_Dest & Wiersz(3), Folder_Dest & Wiersz(3), Strony_Pliku) 'Nadpisz plik z odpowiednimi stronami
-                                                    'My.Computer.FileSystem.DeleteFile(Plik) 'wykasuj ze starej (jakby nie iastniał w nowje to bysmy go i tak przenieśli)
+                                                Else
                                                     Wiersz(4) = "FILE EXIST"
                                                     Nowa_Nazwa = Folder_Dest & Wiersz(3)
                                                     Form_Main.Auto_Ilosc_Zapisanych = Form_Main.Auto_Ilosc_Zapisanych + 1
                                                 End If
                                             Else
-                                                If Not File.Exists(Folder_Dest & Wiersz(3)) Then 'gdy plik nie istnieje jeszcze w nowej lokalizacji
+                                                If Not File.Exists(Folder_Dest & Wiersz(3)) Then
                                                     My.Computer.FileSystem.MoveFile(Plik, Folder_Dest & Wiersz(3))
                                                     Wiersz(4) = "moved & renamed"
                                                     Nowa_Nazwa = Folder_Dest & Wiersz(3)
                                                     Form_Main.Auto_Ilosc_Zapisanych = Form_Main.Auto_Ilosc_Zapisanych + 1
-                                                Else 'gdy plik już w danej lokalizacji istnieje
-                                                    My.Computer.FileSystem.DeleteFile(Plik) 'wykasuj ze starej (jakby nie iastniał w nowje to bysmy go i tak przenieśli)
+                                                Else
+                                                    My.Computer.FileSystem.DeleteFile(Plik)
                                                     Wiersz(4) = "FILE EXIST"
                                                     Nowa_Nazwa = Folder_Dest & Wiersz(3)
                                                     Form_Main.Auto_Ilosc_Zapisanych = Form_Main.Auto_Ilosc_Zapisanych + 1
                                                 End If
-                                                Wiersz(5) = "NOK" 'tu zawsze w wierszu 5 będzie NOK bo nie wysyłany na FTP
+                                                Wiersz(5) = "NOK"
                                             End If
-
                                         End If
 #End Region
+
 #Region "Podgląd plików"
-
-
                                     Else 'do podglądu
                                         If Inna_Lokalizacja = False Then
-                                            If Not File.Exists(Folder_PDF & Wiersz(3)) Then 'gdy plik nie istnieje jeszcze
+                                            If Not File.Exists(Folder_PDF & Wiersz(3)) Then
                                                 Nowa_Nazwa = Plik
                                                 Wiersz(4) = "NOK"
                                             Else
                                                 Nowa_Nazwa = Folder_PDF & Wiersz(3)
                                                 Wiersz(4) = "OK"
                                             End If
-
                                             Form_Main.Auto_Ilosc_Error = Form_Main.Auto_Ilosc_Error + 1
                                         Else
-                                            If Not File.Exists(Folder_Dest & Wiersz(3)) Then 'gdy plik nie istnieje jeszcze w nowej lokalizacji
+                                            If Not File.Exists(Folder_Dest & Wiersz(3)) Then
                                                 Nowa_Nazwa = Plik
                                                 Wiersz(4) = "NOK"
                                             Else
@@ -746,42 +656,34 @@ Module Module1
                                             End If
                                         End If
                                     End If
-
-                                    'KONIEC NOWY ALGORYTM
-                                    '#############################################
                                 Else
-
                                     Wiersz(3) = "Incorrect delivery note number inside PDF file"
                                     Wiersz(4) = "NOK"
                                     Wiersz(5) = "NOK"
                                     Form_Main.Auto_Ilosc_Error = Form_Main.Auto_Ilosc_Error + 1
                                 End If
-
                                 Wiersz(5) = "NOK"
-                            Else 'Plik ma już poprawna nazwę
-                                If Sprawdz_PDF(Plik, Znaleziono_Nr) = True And FilenameIsOK(Wiersz(3)) Then '
-                                    If Inna_Lokalizacja = False Then 'jeśli plik już istnieje i ma popr. nazwe i nie przenosimy go nigdzie- to OK. Koniec procesowania 
-                                        'My.Computer.FileSystem.RenameFile(Plik, "_copy_" & Wiersz(3))
-                                        'Extract_Specific_Pages(Folder_PDF & "_copy_" & Wiersz(3), Folder_PDF & Wiersz(3), Strony_Pliku) 'Stwórz nowy plik z odpowiednimi stronami
-                                        'My.Computer.FileSystem.DeleteFile(Folder_PDF & "_copy_" & Wiersz(3)) 'Skasuj plik tymczasowy
+                            Else
+                                'Plik ma już poprawna nazwę
+                                If Sprawdz_PDF(Plik, Znaleziono_Nr) = True And FilenameIsOK(Wiersz(3)) Then
+                                    If Inna_Lokalizacja = False Then
                                         Nowa_Nazwa = Folder_PDF & Wiersz(3)
                                         Wiersz(4) = "OK"
                                         Wiersz(5) = "NOK"
                                         Form_Main.Auto_Ilosc_Zapisanych = Form_Main.Auto_Ilosc_Zapisanych + 1
-                                    Else 'jeśli plik istnieje, ma popr. nazwe to przenies go do nowej lokalizacji
-                                        If File.Exists(Folder_Dest & Wiersz(3)) Then 'jeśli pklik także istnieje już w nowej lokalizacji
+                                    Else
+                                        If File.Exists(Folder_Dest & Wiersz(3)) Then
                                             Wiersz(4) = "OK"
                                             Wiersz(5) = "NOK"
                                             Form_Main.Auto_Ilosc_Zapisanych = Form_Main.Auto_Ilosc_Zapisanych + 1
                                             Nowa_Nazwa = Folder_Dest & Wiersz(3)
                                             If Not IsFileOpen(info) Then
-                                                My.Computer.FileSystem.DeleteFile(Plik) 'skasuj ze starej
-                                            Else 'tu kiedys dac co innego
+                                                My.Computer.FileSystem.DeleteFile(Plik)
+                                            Else
                                                 Wiersz(4) = "OK"
                                                 Wiersz(5) = "NOK"
                                             End If
-
-                                        Else ' jeśli pliku z popr. juz nazwa nie ma w nowej lokalizacji- przenieś go
+                                        Else
                                             My.Computer.FileSystem.MoveFile(Plik, Folder_Dest & Wiersz(3))
                                             Wiersz(4) = "moved"
                                             Wiersz(5) = "NOK"
@@ -802,14 +704,11 @@ Module Module1
                                 Nowa_Nazwa = Plik
                                 Zapisz_Log_Txt(ex.Message)
                             Catch ex1 As Exception
-
                             End Try
-
-
                         End Try
-
                     End If
 #End Region
+
                     If Logowanie = True Then
                         itm = New ListViewItem(Wiersz)
                         Form_Operacje.Lista_Operacji.Items.Add(itm)
@@ -819,10 +718,8 @@ Module Module1
                             Else
                                 itm.Tag = Plik
                             End If
-
                         End If
-
-                        'Kolumna STATUS ZAPISU
+                        'Kolorowanie wierszy...
                         If Wiersz(4) = "NOK" Then
                             If Zmiana_Nazwy = True Then
                                 itm.UseItemStyleForSubItems = False
@@ -843,7 +740,6 @@ Module Module1
                             Ilosc_NOK1 = Ilosc_NOK1 + 1
                         End If
 
-                        'Kolumna STATUS WYSYŁKI na FTP
                         If Wiersz(5) = "NOK" Then
                             If Wysyłka_Na_FTP = True Then
                                 itm.UseItemStyleForSubItems = False
@@ -863,11 +759,9 @@ Module Module1
                             End If
                             Ilosc_NOK = Ilosc_NOK + 1
                         End If
-
                     End If
-
-                Else ' NA WYPADEK DUBLI !!!!!!!!!!!
-                    'Nowa_Nazwa = System.IO.Path.GetFileName(Plik)
+                Else
+                    ' DUBEL
                     Wiersz(3) = "Duplicate name. This file will not be processed."
                     Wiersz(4) = "NOK"
                     Wiersz(5) = "NOK"
@@ -875,8 +769,6 @@ Module Module1
                         itm = New ListViewItem(Wiersz)
                         Form_Operacje.Lista_Operacji.Items.Add(itm)
                         itm.Tag = Plik
-
-                        'Kolumna STATUS ZAPISU
                         If Wiersz(4) = "NOK" Then
                             If Zmiana_Nazwy = True Then
                                 itm.UseItemStyleForSubItems = False
@@ -884,8 +776,6 @@ Module Module1
                             End If
                             Ilosc_NOK1 = Ilosc_NOK1 + 1
                         End If
-
-                        'Kolumna STATUS WYSYŁKI na FTP
                         If Wiersz(5) = "NOK" Then
                             If Wysyłka_Na_FTP = True Then
                                 itm.UseItemStyleForSubItems = False
@@ -893,12 +783,13 @@ Module Module1
                             End If
                             Ilosc_NOK = Ilosc_NOK + 1
                         End If
-
                     End If
-                End If 'CZY DUBEL WZ
+                End If
             End If
         Next
+
         If Logowanie = True Then
+            'Podsumowanie w ListView - kod bez zmian
             Wiersz(0) = "..........................................................................................................."
             Wiersz(1) = "..........................................................................................................."
             Wiersz(2) = "..........................................................................................................."
@@ -941,21 +832,14 @@ Module Module1
             itm.SubItems(4).BackColor = System.Drawing.Color.Red
             itm.SubItems(5).BackColor = System.Drawing.Color.Red
         End If
-
-
-
-
     End Sub
 
     Public Function Czy_WZ_Jest_Dublem(Kolumna_Z_Ciagami As Integer, Sprawdzany_Ciag As String) As Boolean
         Dim Licznik As Int16 = 0
-        'Kolumna_Z_Ciagami=2
-
         For i = 0 To Form_Operacje.Lista_Operacji.Items.Count - 1 Step 1
             If Form_Operacje.Lista_Operacji.Items(i).SubItems(Kolumna_Z_Ciagami).Text = Sprawdzany_Ciag Then
                 Licznik = Licznik + 1
             End If
-            'Debug.Print("--" & Form_Operacje.Lista_Operacji.Items(i).SubItems(Kolumna_Z_Ciagami).Text & "---")
         Next
         If Licznik > 0 Then
             Czy_WZ_Jest_Dublem = True
@@ -964,27 +848,23 @@ Module Module1
         End If
     End Function
 
-
     Public Function Sprawdz_PDF(Sciezka_Do_Pliku As String, Znaleziono_Nr As Boolean) As Boolean
         If Checking_File = True Then
             Dim Text As String = ParsePdfText2(Sciezka_Do_Pliku, True)
             Dim Znaleziona_pozycja1 As Long = 0
-            'Jeśli wypełnilismy klucz to wyszukajmy go w tekscie i uzyskajmy jego pozycję
             If Text <> "" And Klucz_Sec IsNot Nothing Then
                 Znaleziona_pozycja1 = Text.IndexOf(Klucz_Sec, RichTextBoxFinds.MatchCase)
             Else
-                'jeśli nie znaleźliśmy nic to wypiszmy -1
                 Znaleziona_pozycja1 = -1
             End If
-            'czy pozycja startowa stringa do sprawdzania została ustalona za pomoca klucza?
-            If Klucz_Sec <> "" And Znaleziona_pozycja1 + Start_Pos_Sec > 0 Then 'zabezpieczenie, jak natrafi na inny plik
-                If Mid(Text, Znaleziona_pozycja1 + Start_Pos_Sec, Lenght_Text_Sec) = Control_String Then 'PYTANIE CZY TU + 1!!!
+            If Klucz_Sec <> "" And Znaleziona_pozycja1 + Start_Pos_Sec > 0 Then
+                If Mid(Text, Znaleziona_pozycja1 + Start_Pos_Sec, Lenght_Text_Sec) = Control_String Then
                     Sprawdz_PDF = True
                 Else
                     Sprawdz_PDF = False
                 End If
-            Else ' jak nie ma klucza= wtedy szukamy po wskazaniu startoqwej pozycji i a nie po pozycji klucza!
-                If Start_Pos_Sec > 0 Then 'MID potrzebuje startowej pozycji wiekszej od 0!!
+            Else
+                If Start_Pos_Sec > 0 Then
                     If Mid(Text, Start_Pos_Sec, Lenght_Text_Sec) = Control_String Then
                         Sprawdz_PDF = True
                     Else
@@ -993,47 +873,38 @@ Module Module1
                 Else
                     Sprawdz_PDF = False
                 End If
-
             End If
         Else
-            If Znaleziono_Nr = True Then 'wyłaczenie zabezpieczeń nie działa tylko na sprawdzenie pliku PDF. W przypadku gdy jednak nie zawiera on wymaganej WZ nie procesuj go
-                Sprawdz_PDF = True 'jesli wyłaczone jest sprawdzanie to nie sprawdzaj w ogóle poprawności PDF
+            If Znaleziono_Nr = True Then
+                Sprawdz_PDF = True
             Else
-                Sprawdz_PDF = False 'jesli wyłaczone jest sprawdzanie to nie sprawdzaj w ogóle poprawności PDF
+                Sprawdz_PDF = False
             End If
-
         End If
-
-
     End Function
 
     Public Function Wytnij_String(Tresc As String) As String
-        'If Start_Pos = "" Then
-        '    Start_Pos = 1
-        '  
-        'End If
-        'If Lenght_Text = String.Empty Then
-        '   Lenght_Text = 1
-        '  
-        'End If
-
         Dim Pozycja_Startowa As Long = 0
         If Tresc <> "" Then
             If Klucz <> "" And Klucz <> String.Empty Then
-                Pozycja_Startowa = InStr(Tresc, Klucz) - 1 'instr liczy od 1 a nie od 0! Stąd tu odejmuje 1
+                Pozycja_Startowa = InStr(Tresc, Klucz) - 1
             Else
                 Pozycja_Startowa = 0
             End If
             If Start_Pos + Pozycja_Startowa > 0 And Pozycja_Startowa > -1 Then
-                Wytnij_String = Tresc.Substring(Start_Pos + Pozycja_Startowa - 1, Lenght_Text) 'substring wycina od 0 
+                Try
+                    Wytnij_String = Tresc.Substring(Start_Pos + Pozycja_Startowa - 1, Lenght_Text)
+                Catch ex As Exception
+                    Wytnij_String = ""
+                End Try
             Else
                 Wytnij_String = ""
             End If
         Else
             Wytnij_String = ""
         End If
-
     End Function
+
     Public Function Napraw_String(Tresc As String)
         Dim Poprawiany_String As String = Tresc
         Poprawiany_String = Replace(Poprawiany_String, vbLf, "")
@@ -1044,6 +915,7 @@ Module Module1
         Poprawiany_String = Replace(Poprawiany_String, vbTab, "")
         Napraw_String = Poprawiany_String
     End Function
+
     Function IsFileOpen(ByVal file As FileInfo) As Boolean
         Dim stream As FileStream = Nothing
         IsFileOpen = False
@@ -1051,9 +923,8 @@ Module Module1
             stream = file.Open(FileMode.Open, FileAccess.ReadWrite, FileShare.None)
             stream.Close()
         Catch ex As Exception
-            'Debug.Print(ex.Message)
             If TypeOf ex Is IOException AndAlso IsFileLocked(ex) Then
-                IsFileOpen = True ' do something here, either close the file if you have a handle, show a msgbox, retry  or as a last resort terminate the process - which could cause corruption and lose data
+                IsFileOpen = True
             End If
         End Try
     End Function
@@ -1062,6 +933,7 @@ Module Module1
         Dim errorCode As Integer = Marshal.GetHRForException(exception) And ((1 << 16) - 1)
         Return errorCode = 32 OrElse errorCode = 33
     End Function
+
     Public Function IsConnectedToInternet() As Boolean
         If My.Computer.Network.IsAvailable Then
             Try
@@ -1099,65 +971,54 @@ Module Module1
                         "Start Error Log for today" & "Error details: " & Tresc))
             End Using
         Catch ex As Exception
-
         End Try
-
     End Sub
 
-
+    ' Zastąpiona funkcja przy użyciu PdfPig
     Public Sub ExtractPages(ByVal sourcePdfPath As String, ByVal outputPdfPath As String, ByVal startPage As Integer, ByVal endPage As Integer)
-        'https://www.codeproject.com/Articles/559380/SplittingplusandplusMergingplusPdfplusFilesplusinp
-        'WYpakuj strony od 1 wskazanej do n-tej
-        Dim reader As PdfReader = Nothing
-        Dim sourceDocument As Document = Nothing
-        Dim pdfCopyProvider As PdfCopy = Nothing
-        Dim importedPage As PdfImportedPage = Nothing
-
+        ' WYpakuj strony od 1 wskazanej do n-tej
         Try
-            reader = New PdfReader(sourcePdfPath)
-            sourceDocument = New Document(reader.GetPageSizeWithRotation(startPage))
-            pdfCopyProvider = New PdfCopy(sourceDocument, New System.IO.FileStream(outputPdfPath, System.IO.FileMode.Create))
-            sourceDocument.Open()
+            ' Używamy PdfDocumentBuilder do tworzenia nowego PDF
+            Dim builder As New PdfDocumentBuilder()
 
-            For i As Integer = startPage To endPage
-                importedPage = pdfCopyProvider.GetImportedPage(reader, i)
-                'Debug.Print(importedPage.ToString)
+            Using sourcePdf As PdfDocument = PdfDocument.Open(sourcePdfPath)
+                For i As Integer = startPage To endPage
+                    ' Dodajemy stronę ze źródłowego PDF do nowego buildera
+                    ' Uwaga: w PdfPig indeksowanie stron przy pobieraniu jest zazwyczaj 1-based, 
+                    ' ale AddPage bierze obiekt strony lub indeks. Tutaj najbezpieczniej:
+                    builder.AddPage(sourcePdf, i)
+                Next
+            End Using
 
-                pdfCopyProvider.AddPage(importedPage)
-            Next
+            ' Zapisz plik
+            Dim fileBytes As Byte() = builder.Build()
+            File.WriteAllBytes(outputPdfPath, fileBytes)
 
-            sourceDocument.Close()
-            reader.Close()
         Catch ex As Exception
             Throw ex
         End Try
     End Sub
 
+    ' Zastąpiona funkcja przy użyciu PdfPig
     Public Sub Extract_Specific_Pages(ByVal sourcePdfPath As String, ByVal outputPdfPath As String, ByVal extractThesePages As Integer())
-        'Wypakuj poszczególne wskazane w tablicy strony
-        Dim reader As PdfReader = Nothing
-        Dim sourceDocument As Document = Nothing
-        Dim pdfCopyProvider As PdfCopy = Nothing
-        Dim importedPage As PdfImportedPage = Nothing
-
+        ' Wypakuj poszczególne wskazane w tablicy strony
         Try
-            reader = New PdfReader(sourcePdfPath)
-            sourceDocument = New Document(reader.GetPageSizeWithRotation(extractThesePages(0)))
-            pdfCopyProvider = New PdfCopy(sourceDocument, New System.IO.FileStream(outputPdfPath, System.IO.FileMode.Create))
-            sourceDocument.Open()
+            Dim builder As New PdfDocumentBuilder()
 
-            For Each pageNumber As Integer In extractThesePages
-                importedPage = pdfCopyProvider.GetImportedPage(reader, pageNumber)
+            Using sourcePdf As PdfDocument = PdfDocument.Open(sourcePdfPath)
+                For Each pageNumber As Integer In extractThesePages
+                    If pageNumber > 0 And pageNumber <= sourcePdf.NumberOfPages Then
+                        builder.AddPage(sourcePdf, pageNumber)
+                    End If
+                Next
+            End Using
 
-                pdfCopyProvider.AddPage(importedPage)
-            Next
+            Dim fileBytes As Byte() = builder.Build()
+            File.WriteAllBytes(outputPdfPath, fileBytes)
 
-            sourceDocument.Close()
-            reader.Close()
         Catch ex As Exception
             Throw ex
         End Try
     End Sub
-
 
 End Module

@@ -34,7 +34,6 @@ Partial Class Form_Main
         Me.PomocToolStripMenuItem1 = New System.Windows.Forms.ToolStripMenuItem()
         Me.ĄczenieFTPToolStripMenuItem = New System.Windows.Forms.ToolStripMenuItem()
         Me.LicencjaToolStripMenuItem = New System.Windows.Forms.ToolStripMenuItem()
-        Me.UpdateToolStripMenuItem = New System.Windows.Forms.ToolStripMenuItem()
         Me.OProgramieToolStripMenuItem1 = New System.Windows.Forms.ToolStripMenuItem()
         Me.TestToolStripMenuItem = New System.Windows.Forms.ToolStripMenuItem()
         Me.ProgramToolStripMenuItem = New System.Windows.Forms.ToolStripMenuItem()
@@ -70,6 +69,7 @@ Partial Class Form_Main
         Me.ToolStripHide = New System.Windows.Forms.ToolStripStatusLabel()
         Me.ToolStripDisableRefreshing = New System.Windows.Forms.ToolStripStatusLabel()
         Me.Timer_Automat = New System.Windows.Forms.Timer(Me.components)
+        Me.ManualToolStripMenuItem = New System.Windows.Forms.ToolStripMenuItem()
         Me.MenuStrip1.SuspendLayout()
         Me.ContextMenuStrip1.SuspendLayout()
         Me.GroupBox1.SuspendLayout()
@@ -124,7 +124,7 @@ Partial Class Form_Main
         '
         'PomocToolStripMenuItem1
         '
-        Me.PomocToolStripMenuItem1.DropDownItems.AddRange(New System.Windows.Forms.ToolStripItem() {Me.ĄczenieFTPToolStripMenuItem, Me.LicencjaToolStripMenuItem, Me.UpdateToolStripMenuItem, Me.OProgramieToolStripMenuItem1, Me.TestToolStripMenuItem})
+        Me.PomocToolStripMenuItem1.DropDownItems.AddRange(New System.Windows.Forms.ToolStripItem() {Me.ĄczenieFTPToolStripMenuItem, Me.LicencjaToolStripMenuItem, Me.OProgramieToolStripMenuItem1, Me.TestToolStripMenuItem, Me.ManualToolStripMenuItem})
         Me.PomocToolStripMenuItem1.Name = "PomocToolStripMenuItem1"
         Me.PomocToolStripMenuItem1.Size = New System.Drawing.Size(65, 29)
         Me.PomocToolStripMenuItem1.Text = "Help"
@@ -140,12 +140,6 @@ Partial Class Form_Main
         Me.LicencjaToolStripMenuItem.Name = "LicencjaToolStripMenuItem"
         Me.LicencjaToolStripMenuItem.Size = New System.Drawing.Size(270, 34)
         Me.LicencjaToolStripMenuItem.Text = "Licence"
-        '
-        'UpdateToolStripMenuItem
-        '
-        Me.UpdateToolStripMenuItem.Name = "UpdateToolStripMenuItem"
-        Me.UpdateToolStripMenuItem.Size = New System.Drawing.Size(270, 34)
-        Me.UpdateToolStripMenuItem.Text = "Update"
         '
         'OProgramieToolStripMenuItem1
         '
@@ -454,6 +448,12 @@ Partial Class Form_Main
         '
         Me.Timer_Automat.Interval = 10000
         '
+        'ManualToolStripMenuItem
+        '
+        Me.ManualToolStripMenuItem.Name = "ManualToolStripMenuItem"
+        Me.ManualToolStripMenuItem.Size = New System.Drawing.Size(270, 34)
+        Me.ManualToolStripMenuItem.Text = "Manual"
+        '
         'Form_Main
         '
         Me.AutoScaleDimensions = New System.Drawing.SizeF(9.0!, 20.0!)
@@ -468,7 +468,7 @@ Partial Class Form_Main
         Me.Margin = New System.Windows.Forms.Padding(4, 5, 4, 5)
         Me.MaximizeBox = False
         Me.Name = "Form_Main"
-        Me.Text = "PDF ---> FTP 1.0.9"
+        Me.Text = "PDF ---> SFTP 2.0"
         Me.MenuStrip1.ResumeLayout(False)
         Me.MenuStrip1.PerformLayout()
         Me.ContextMenuStrip1.ResumeLayout(False)
@@ -511,7 +511,6 @@ Partial Class Form_Main
     Friend WithEvents StatusStrip1 As StatusStrip
     Friend WithEvents LicencjaToolStripMenuItem As ToolStripMenuItem
     Friend WithEvents Btn_Save As Button
-    Friend WithEvents UpdateToolStripMenuItem As ToolStripMenuItem
     Friend WithEvents ToolStripAutomation As ToolStripSplitButton
     Friend WithEvents ToolStripStatusLabel1 As ToolStripStatusLabel
     Friend WithEvents Timer_Automat As Timer
@@ -529,4 +528,5 @@ Partial Class Form_Main
     Friend WithEvents Pic_Lista As PictureBox
     Friend WithEvents ĄczenieFTPToolStripMenuItem As ToolStripMenuItem
     Friend WithEvents TestToolStripMenuItem As ToolStripMenuItem
+    Friend WithEvents ManualToolStripMenuItem As ToolStripMenuItem
 End Class

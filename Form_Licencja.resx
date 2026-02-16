@@ -118,16 +118,24 @@
     <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </resheader>
   <data name="RichTextBox1.Text" xml:space="preserve">
-    <value>   This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+    <value>LICENCJA OPROGRAMOWANIA "PDF-to-FTP"
 
-   This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+Niniejsze oprogramowanie jest udostępniane użytkownikowi końcowemu ("Użytkownik") na zasadzie licencji darmowej ("Freeware").
 
-   You should have received a copy of the GNU General Public License along with this program.  If not, see &lt;&lt;http://www.gnu.org/licenses/&gt;&gt;
+BRAK GWARANCJI
+Oprogramowanie jest dostarczane w stanie "TAKIM, JAKIE JEST" ("AS IS"), bez jakiejkolwiek gwarancji, wyraźnej lub dorozumianej, w tym między innymi gwarancji przydatności handlowej, przydatności do określonego celu oraz nienaruszania praw.
 
-   Program is using iTEXT library avaible  on the website: https://itextpdf.com, https://itextpdf.com/en/how-buy/agpl-license on AGPL licence. Terms of use iTEXT library you can find here: http://itextpdf.com/terms-of-use
+WYŁĄCZENIE ODPOWIEDZIALNOŚCI
+W żadnym wypadku autorzy ani posiadacze praw autorskich nie ponoszą odpowiedzialności za jakiekolwiek roszczenia, szkody lub inne zobowiązania, w tym szkody bezpośrednie, pośrednie, przypadkowe, specjalne, przykładowe lub wtórne (w tym, ale nie ograniczając się do, utraty użytkowania, danych lub zysków; lub przerwy w działalności), niezależnie od tego, czy wynikają one z umowy, odpowiedzialności ścisłej lub czynu niedozwolonego (w tym zaniedbania lub innego), powstałe w jakikolwiek sposób w wyniku korzystania z tego oprogramowania, nawet jeśli powiadomiono o możliwości wystąpienia takich szkód.
 
-   Program is using AutoUpdater.NET library avaible on the website: https://github.com/ravibpatel/AutoUpdater.NET
-   Source code is avaible on the website: https://github.com/excelsolutions/PDF-to-FTP</value>
+UŻYTKOWANIE
+Pobieranie, instalacja i użytkowanie oprogramowania jest całkowicie dobrowolne i odbywa się na wyłączną odpowiedzialność Użytkownika.
+
+KOMPONENTY STRON TRZECICH
+Program wykorzystuje bibliotekę PdfPig (UglyToad.PdfPig), która jest dostępna na licencji Apache License 2.0. Szczegóły licencji znajdują się na stronie: https://github.com/UglyToad/PdfPig
+
+KOD ŹRÓDŁOWY
+Kod źródłowy niniejszego oprogramowania jest dostępny publicznie w serwisie GitHub: https://github.com/excelsolutions/PDF-to-FTP</value>
   </data>
   <assembly alias="System.Drawing" name="System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a" />
   <data name="$this.Icon" type="System.Drawing.Icon, System.Drawing" mimetype="application/x-microsoft.net.object.bytearray.base64">
